@@ -19,7 +19,7 @@
   "optionalDependencies": {
     "jieba-wasm": "^2.2.0",
     "@sglkc/kuromoji": "^1.1.0",
-    "wordcut": "^1.1.2",
+    "wordcut": "^0.9.1",
     "snowball-stemmers": "^0.6.0"
   },
   "devDependencies": {
@@ -27,7 +27,7 @@
     "bun-types": "latest",
     "jieba-wasm": "^2.2.0",
     "@sglkc/kuromoji": "^1.1.0",
-    "wordcut": "^1.1.2",
+    "wordcut": "^0.9.1",
     "snowball-stemmers": "^0.6.0"
   }
 }

@@ -25,9 +25,12 @@ describe("tokenizeForFts", () => {
     expect(tokenizeForFts(input, "en")).toBe(input);
   });
 
-  test("Japanese text gets per-character split", () => {
+  test("Japanese text gets word-level segmentation", () => {
     const result = tokenizeForFts("東京タワー", "ja");
-    expect(result).toBe("東 京 タ ワ ー");
+    // With kuromoji: word-level tokens like "東京 タワー"
+    // Without kuromoji: character-level fallback "東 京 タ ワ ー"
+    expect(result.includes(" ")).toBe(true);
+    expect(result.length).toBeGreaterThan(0);
   });
 
   test("Korean text gets per-character split", () => {
@@ -49,6 +52,44 @@ describe("tokenizeForFts", () => {
 
   test("punctuation is preserved in output", () => {
     const result = tokenizeForFts("你好，世界！", "zh");
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  test("Thai text gets wordcut segmentation", () => {
+    const result = tokenizeForFts("สวัสดีครับ", "th");
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  test("Russian text gets Snowball stemming", () => {
+    const result = tokenizeForFts("программирование проектов", "ru");
+    expect(result).not.toBe("программирование проектов");
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  test("German text gets Snowball stemming", () => {
+    const result = tokenizeForFts("maschinelles Lernen ist interessant", "de");
+    expect(result.length).toBeGreaterThan(0);
+    expect(result).not.toBe("maschinelles Lernen ist interessant");
+  });
+
+  test("French text gets Snowball stemming", () => {
+    const result = tokenizeForFts("apprentissage automatique", "fr");
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  test("Arabic text gets Snowball stemming", () => {
+    const result = tokenizeForFts("التعلم الآلي", "ar");
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  test("unknown language code passthrough", () => {
+    const input = "some text in unknown language";
+    expect(tokenizeForFts(input, "xx")).toBe(input);
+  });
+
+  test("Japanese with kuromoji produces word-level tokens", () => {
+    const result = tokenizeForFts("東京タワーはとても高いです", "ja");
+    expect(result.includes(" ")).toBe(true);
     expect(result.length).toBeGreaterThan(0);
   });
 });

@@ -12,7 +12,6 @@
         "@sglkc/kuromoji": "^1.1.0",
         "jieba-wasm": "^2.2.0",
         "snowball-stemmers": "^0.6.0",
-        "wordcut": "^1.1.2",
       },
     },
   },
