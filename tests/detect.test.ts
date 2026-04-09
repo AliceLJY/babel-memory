@@ -45,4 +45,28 @@ describe("detectLanguage", () => {
   test("single CJK character -> zh", () => {
     expect(detectLanguage("好")).toBe("zh");
   });
+
+  test("Thai text -> th", () => {
+    expect(detectLanguage("สวัสดีครับ วันนี้อากาศดีมาก")).toBe("th");
+  });
+
+  test("Arabic text -> ar", () => {
+    expect(detectLanguage("مرحبا بالعالم، هذا مشروع جديد")).toBe("ar");
+  });
+
+  test("Hindi/Devanagari text -> hi", () => {
+    expect(detectLanguage("नमस्ते दुनिया, यह एक नया प्रोजेक्ट है")).toBe("hi");
+  });
+
+  test("Russian/Cyrillic text -> ru", () => {
+    expect(detectLanguage("Привет мир, это новый проект")).toBe("ru");
+  });
+
+  test("mixed Thai-English -> th", () => {
+    expect(detectLanguage("ใช้ Python สำหรับ Machine Learning")).toBe("th");
+  });
+
+  test("mixed Arabic-English -> ar", () => {
+    expect(detectLanguage("استخدام Python في مشروع الذكاء الاصطناعي")).toBe("ar");
+  });
 });
