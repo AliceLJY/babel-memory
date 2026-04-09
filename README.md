@@ -1,11 +1,23 @@
+<div align="center">
+
 # babel-memory
 
-**The first standalone library fixing the multilingual blind spot in AI memory systems. 27+ languages, zero required dependencies, modular install.**
+**The first standalone library fixing the multilingual blind spot in AI memory systems.**
+
+*27+ languages. Zero required dependencies. Drop-in fix for BM25 + RAG.*
 
 > *Not affiliated with Babel.js. Named after the Tower of Babel — breaking the language barrier in AI agent memory.*
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![npm](https://img.shields.io/npm/v/babel-memory)](https://www.npmjs.com/package/babel-memory)
+[![npm downloads](https://img.shields.io/npm/dm/babel-memory)](https://www.npmjs.com/package/babel-memory)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/AliceLJY/babel-memory?style=social)](https://github.com/AliceLJY/babel-memory)
+[![Languages](https://img.shields.io/badge/Languages-27+-orange)](https://github.com/AliceLJY/babel-memory)
+[![Dependencies](https://img.shields.io/badge/Required_deps-0-brightgreen)](https://github.com/AliceLJY/babel-memory)
+
+**English** | [简体中文](README_CN.md)
+
+</div>
 
 ---
 
@@ -190,9 +202,25 @@ Total: **8 auto-detected + 14 explicit Snowball = 27+ languages** (Arabic and Ru
 - **MCP server authors** — if your memory tools need multilingual support
 - **Anyone** who's noticed their AI agent "forgets" non-English conversations
 
+## Compared to Alternatives
+
+Most AI memory / RAG systems treat tokenization as solved. They're not wrong — for English. For the rest of the world:
+
+| | babel-memory | mem0 | Letta | Raw LanceDB FTS |
+|---|---|---|---|---|
+| CJK word segmentation | jieba / kuromoji | None | None | Character bigrams |
+| European stemming | Snowball (20 langs) | None | None | None |
+| Language detection | 8 script systems | None | None | None |
+| Bilingual KG prompts | EN + CJK | English only | English only | N/A |
+| Required dependencies | **0** | Heavy | Heavy | N/A |
+| Works with any FTS engine | Tantivy, SQLite FTS5, ES, Meilisearch | Locked in | Locked in | LanceDB only |
+
+babel-memory is **not** a memory system — it's a preprocessing layer that makes any memory system work properly across languages.
+
 ## Used By
 
-- [RecallNest](https://github.com/AliceLJY/recallnest) — MCP-native memory system (first integration)
+- [RecallNest](https://github.com/AliceLJY/recallnest) — MCP-native shared memory for Claude Code, Codex, and Gemini CLI
+- [UltraMemory](https://github.com/win4r/UltraMemory) — Universal AI agent long-term memory engine ([integration PR](https://github.com/win4r/UltraMemory/pull/14))
 
 ## Research References
 

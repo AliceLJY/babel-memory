@@ -1,11 +1,23 @@
+<div align="center">
+
 # babel-memory
 
-**首个专门解决 AI 记忆系统多语言盲区的独立工具库。支持 27+ 种语言，零必需依赖，按需安装。**
+**首个专门解决 AI 记忆系统多语言盲区的独立工具库。**
+
+*27+ 种语言。零必需依赖。BM25 + RAG 的即插即用修复方案。*
 
 > *与 Babel.js 无关。以巴别塔命名——打破 AI Agent 记忆的语言壁垒。*
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![npm](https://img.shields.io/npm/v/babel-memory)](https://www.npmjs.com/package/babel-memory)
+[![npm downloads](https://img.shields.io/npm/dm/babel-memory)](https://www.npmjs.com/package/babel-memory)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/AliceLJY/babel-memory?style=social)](https://github.com/AliceLJY/babel-memory)
+[![Languages](https://img.shields.io/badge/Languages-27+-orange)](https://github.com/AliceLJY/babel-memory)
+[![Dependencies](https://img.shields.io/badge/Required_deps-0-brightgreen)](https://github.com/AliceLJY/babel-memory)
+
+[English](README.md) | **简体中文**
+
+</div>
 
 ---
 
@@ -190,9 +202,25 @@ babel-memory **绝不会**因缺少可选包而崩溃。每种语言都有降级
 - **MCP Server 作者** — 记忆工具需要多语言支持
 - **所有人** — 如果你注意到 AI Agent 会"忘记"非英文对话
 
+## 与替代方案的对比
+
+大多数 AI 记忆/RAG 系统都默认分词问题已解决。对英文确实如此，但对其他语言：
+
+| | babel-memory | mem0 | Letta | LanceDB 原生 FTS |
+|---|---|---|---|---|
+| CJK 词级分词 | jieba / kuromoji | 无 | 无 | 字符 bigram |
+| 欧洲语言词干提取 | Snowball (20 种) | 无 | 无 | 无 |
+| 语言自动检测 | 8 种文字系统 | 无 | 无 | 无 |
+| 双语 KG 提取 prompt | 中英双语 | 仅英文 | 仅英文 | 不适用 |
+| 必需依赖 | **0** | 重量级 | 重量级 | 不适用 |
+| 兼容任意 FTS 引擎 | Tantivy, SQLite FTS5, ES, Meilisearch | 锁定 | 锁定 | 仅 LanceDB |
+
+babel-memory **不是**记忆系统——它是一个预处理层，让任何记忆系统都能正确处理多语言内容。
+
 ## 谁在使用
 
-- [RecallNest](https://github.com/AliceLJY/recallnest) — MCP 原生记忆系统（首个集成）
+- [RecallNest](https://github.com/AliceLJY/recallnest) — MCP 原生共享记忆，服务 Claude Code、Codex 和 Gemini CLI
+- [UltraMemory](https://github.com/win4r/UltraMemory) — 通用 AI Agent 长期记忆引擎（[集成 PR](https://github.com/win4r/UltraMemory/pull/14)）
 
 ## 研究参考
 
