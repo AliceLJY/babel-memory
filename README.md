@@ -1,6 +1,6 @@
 # babel-memory
 
-**The first standalone library fixing the multilingual blind spot in AI memory systems.**
+**The first standalone library fixing the multilingual blind spot in AI memory systems. 27+ languages, zero required dependencies, modular install.**
 
 > *Not affiliated with Babel.js. Named after the Tower of Babel — breaking the language barrier in AI agent memory.*
 
@@ -21,7 +21,7 @@ Every major AI memory / RAG system today — mem0, Letta, LanceDB-based stores �
 | Cross-lingual retrieval | Query/document language mismatch | **-56% recall** (XRAG benchmark) |
 | Auto-evaluation | LLM-as-Judge overestimates non-English quality | Problems go **systematically unreported** |
 
-**babel-memory is the fix for layers 2-4.** Three functions. One `npm install`. Zero config.
+**babel-memory is the fix for layers 2-4.** Same simple API. Zero required dependencies. Install only the language packs you need.
 
 ## Before & After
 
@@ -38,35 +38,58 @@ AFTER babel-memory:
   KG extract → Chinese prompt with CJK few-shot examples
 ```
 
-## Install
+```
+BEFORE babel-memory (European):
+  Store: "Maschinelles Lernen verbessert die Verarbeitung"
+  BM25 search("Verarbeitung") → [match]
+  BM25 search("verarbeitet") → [] (different form, zero results)
 
-```bash
-npm install babel-memory
-# or
-bun add babel-memory
+AFTER babel-memory + snowball-stemmers:
+  Store: "Maschinelles Lernen verbessert die Verarbeitung"
+         → fts_text: "maschinell lern verbess verarbeit"
+  BM25 search("verarbeitet") → stem("verarbeitet") = "verarbeit" → [match found!]
 ```
 
-~2MB total (jieba-wasm). Zero native compilation. Works everywhere.
+## Modular Install
+
+```bash
+# Core only (zero dependencies — pure TypeScript)
+npm install babel-memory
+
+# Add language packs as needed:
+npm install jieba-wasm          # Chinese
+npm install @sglkc/kuromoji     # Japanese
+npm install wordcut             # Thai
+npm install snowball-stemmers   # 20 European languages (German, French, Spanish, Russian, etc.)
+```
+
+**You only pay for what you use.** The core package has zero dependencies — language packs are loaded lazily at runtime. If a package isn't installed, babel-memory gracefully falls back to a simpler strategy (character-level split or passthrough). It never crashes.
 
 ## Quick Start
 
 ```typescript
 import { detectLanguage, initTokenizer, tokenizeForFts, getKgPrompt } from "babel-memory";
 
-// 1. Initialize once at startup
+// 1. Initialize once at startup (loads whichever packages are installed)
 await initTokenizer();
 
 // 2. Detect language (zero dependencies, pure Unicode analysis)
 detectLanguage("这个项目的架构设计非常优秀");  // "zh"
 detectLanguage("東京タワーはとても高いです");    // "ja" (not "zh" — hiragana detected first)
 detectLanguage("이 프로젝트는 매우 훌륭합니다"); // "ko"
+detectLanguage("สวัสดีครับ");                    // "th"
+detectLanguage("مرحبا بالعالم");                 // "ar"
+detectLanguage("Машинное обучение");              // "ru"
 
 // 3. Pre-tokenize for BM25 (the core fix)
 tokenizeForFts("机器学习很有趣", "zh");
 // → "机器 学习 很 有趣"  (jieba word segmentation)
 
 tokenizeForFts("東京タワー", "ja");
-// → "東 京 タ ワ ー"  (character-level split)
+// → "東京 タワー"  (kuromoji word segmentation)
+
+tokenizeForFts("Maschinelles Lernen", "de");
+// → "maschinell lern"  (Snowball stemming)
 
 // 4. Get bilingual prompts for LLM calls
 const { system, userTemplate } = getKgPrompt("zh");
@@ -76,7 +99,7 @@ const { system, userTemplate } = getKgPrompt("zh");
 
 ## How It Works
 
-The key insight: **pre-tokenize CJK text before FTS indexing**.
+The key insight: **pre-tokenize non-whitespace-delimited text before FTS indexing, and stem inflected languages.**
 
 ```
 Standard FTS pipeline (broken for Chinese):
@@ -93,35 +116,77 @@ This works with **any** whitespace-based FTS engine: Tantivy (LanceDB), SQLite F
 Japanese uses kanji (CJK characters). Naive CJK detection would misclassify Japanese as Chinese. babel-memory checks **language-unique scripts first**:
 
 1. Hiragana/Katakana present? → Japanese (unique to Japanese)
-2. Hangul present? → Korean (unique to Korean)  
-3. CJK Ideographs without Japanese/Korean markers? → Chinese
-4. Default → English
+2. Hangul present? → Korean (unique to Korean)
+3. Thai script? → Thai
+4. Arabic script? → Arabic
+5. Devanagari? → Hindi
+6. Cyrillic? → Russian
+7. CJK Ideographs without Japanese/Korean markers? → Chinese
+8. Default → English
+
+## Graceful Degradation
+
+babel-memory **never crashes** due to a missing optional package. Each language has a fallback chain:
+
+| Language | With package installed | Without package |
+|----------|----------------------|-----------------|
+| Chinese | jieba word segmentation | Character-level CJK split |
+| Japanese | kuromoji word segmentation | Character-level CJK + kana split |
+| Thai | wordcut segmentation | Passthrough |
+| European (de, fr, es...) | Snowball stemming | Passthrough |
+| Korean | Character-level split | Character-level split (no extra package needed) |
+| Arabic, Hindi, Russian | Auto-detected | Passthrough (Snowball stemming available for ar, ru) |
+| English | Passthrough | Passthrough |
+
+A warning is logged once per missing package so you know what to install for better quality. Your application keeps working regardless.
 
 ## API Reference
 
 | Function | Input | Output | Description |
 |----------|-------|--------|-------------|
-| `detectLanguage(text)` | `string` | `"zh" \| "ja" \| "ko" \| "en"` | Unicode script ratio analysis. Zero dependencies. |
-| `initTokenizer()` | — | `Promise<void>` | Load jieba-wasm. Call once. Idempotent. |
-| `tokenizeForFts(text, lang)` | `string, string` | `string` | Pre-tokenize for BM25. Chinese=jieba, Ja/Ko=char-split, En=passthrough. |
-| `getKgPrompt(lang)` | `string` | `{ system, userTemplate }` | Bilingual KG triple extraction prompt. `{text}` placeholder. |
+| `detectLanguage(text)` | `string` | `Language` | Unicode script ratio analysis. Detects zh, ja, ko, th, ar, hi, ru, en. Zero dependencies. |
+| `initTokenizer()` | — | `Promise<void>` | Load all available tokenizers in parallel. Call once. Idempotent. Non-fatal if any fail. |
+| `tokenizeForFts(text, lang)` | `string, string` | `string` | Pre-tokenize for BM25. Routes by language to the appropriate strategy. |
+| `getKgPrompt(lang)` | `string` | `{ system, userTemplate }` | Bilingual KG triple extraction prompt. `{text}` placeholder in template. |
 | `getSessionPrompt(lang)` | `string` | `{ system, dimensionLabels }` | Bilingual session summary prompt. 9 structured dimensions. |
+
+**Type:** `Language = "zh" | "ja" | "ko" | "th" | "ar" | "hi" | "ru" | "en"`
+
+`tokenizeForFts` also accepts any Snowball language code (e.g., `"de"`, `"fr"`, `"es"`) as a string.
 
 ## Supported Languages
 
-| Code | Language | FTS Strategy | Quality |
-|------|----------|-------------|---------|
-| `zh` | Chinese | jieba search-mode (word-level, overlapping) | Production |
-| `ja` | Japanese | Character-level CJK + kana split | Functional (lindera planned) |
-| `ko` | Korean | Character-level hangul + CJK split | Functional (mecab-ko planned) |
-| `en` | English | Passthrough (no preprocessing) | Native |
+### Auto-Detected (via `detectLanguage`)
 
-Architecture is extensible — Arabic, Hindi, Thai support planned.
+| Code | Language | Script | FTS Strategy | Package |
+|------|----------|--------|-------------|---------|
+| `zh` | Chinese | CJK Ideographs | jieba search-mode word segmentation | `jieba-wasm` |
+| `ja` | Japanese | Hiragana + Katakana + CJK | kuromoji word segmentation | `@sglkc/kuromoji` |
+| `ko` | Korean | Hangul + CJK | Character-level split | (built-in) |
+| `th` | Thai | Thai script | wordcut segmentation | `wordcut` |
+| `ar` | Arabic | Arabic script | Snowball stemming | `snowball-stemmers` |
+| `hi` | Hindi | Devanagari | Passthrough | (none) |
+| `ru` | Russian | Cyrillic | Snowball stemming | `snowball-stemmers` |
+| `en` | English | Latin | Passthrough | (none) |
+
+### Snowball-Stemmed Languages (pass code to `tokenizeForFts`)
+
+| Code | Language | Code | Language |
+|------|----------|------|----------|
+| `de` | German | `nl` | Dutch |
+| `fr` | French | `sv` | Swedish |
+| `es` | Spanish | `no` | Norwegian |
+| `pt` | Portuguese | `da` | Danish |
+| `it` | Italian | `fi` | Finnish |
+| `hu` | Hungarian | `tr` | Turkish |
+| `ro` | Romanian | `cs` | Czech |
+
+Total: **8 auto-detected + 14 explicit Snowball = 27+ languages** (Arabic and Russian appear in both lists).
 
 ## Who Is This For
 
 - **AI memory system builders** — if you're building on LanceDB, ChromaDB, or any vector+BM25 hybrid store
-- **RAG pipeline developers** — if your users speak CJK languages and BM25 returns empty
+- **RAG pipeline developers** — if your users speak non-English languages and BM25 returns empty
 - **MCP server authors** — if your memory tools need multilingual support
 - **Anyone** who's noticed their AI agent "forgets" non-English conversations
 
