@@ -1,7 +1,7 @@
 {
   "name": "babel-memory",
-  "version": "1.0.0",
-  "description": "Language-aware preprocessing for AI memory systems. CJK detection, FTS tokenization, bilingual prompts.",
+  "version": "2.0.0",
+  "description": "Language-aware preprocessing for AI memory systems. 27+ languages, zero required dependencies.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -9,17 +9,25 @@
     "test": "bun test",
     "prepublishOnly": "bun run build"
   },
-  "keywords": ["ai-memory", "cjk", "multilingual", "rag", "bm25", "tokenizer", "language-detection"],
+  "keywords": ["ai-memory", "cjk", "multilingual", "rag", "bm25", "tokenizer", "language-detection", "stemming"],
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/AliceLJY/babel-memory.git"
   },
-  "dependencies": {
-    "jieba-wasm": "^2.2.0"
+  "dependencies": {},
+  "optionalDependencies": {
+    "jieba-wasm": "^2.2.0",
+    "@sglkc/kuromoji": "^1.1.0",
+    "wordcut": "^1.1.2",
+    "snowball-stemmers": "^0.6.0"
   },
   "devDependencies": {
     "typescript": "^5.5.0",
-    "bun-types": "latest"
+    "bun-types": "latest",
+    "jieba-wasm": "^2.2.0",
+    "@sglkc/kuromoji": "^1.1.0",
+    "wordcut": "^1.1.2",
+    "snowball-stemmers": "^0.6.0"
   }
 }
