@@ -1,22 +1,42 @@
 # babel-memory
 
-Language-aware preprocessing for AI memory systems -- fixing the multilingual gap in AI agent memory.
+**The first standalone library fixing the multilingual blind spot in AI memory systems.**
 
-*Not affiliated with Babel.js. This is a standalone library for multilingual AI memory preprocessing.*
+> *Not affiliated with Babel.js. Named after the Tower of Babel — breaking the language barrier in AI agent memory.*
 
-## The Problem
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![npm](https://img.shields.io/npm/v/babel-memory)](https://www.npmjs.com/package/babel-memory)
 
-Most AI memory and RAG systems assume English-like text. When they encounter Chinese, Japanese, or Korean (CJK) content, things break at every layer:
+---
 
-1. **Token estimation** -- whitespace-based counters undercount CJK text by 2-5x
-2. **Tokenization** -- BM25/FTS engines split on whitespace, producing entire Chinese sentences as single tokens
-3. **Retrieval** -- BM25 search returns zero results for CJK queries because no tokens match
-4. **Reasoning** -- English-only extraction prompts degrade LLM output quality on CJK input
-5. **Evaluation** -- session summaries lose nuance when the prompt language mismatches the content
+## Why This Exists
 
-This is the **5-layer semantic loss cascade**: each layer silently degrades, and by the time you notice, your memory system is effectively blind to non-English content.
+Every major AI memory / RAG system today — mem0, Letta, LanceDB-based stores — **silently fails on non-English content**. Research across 8 academic papers (MMTEB, XRAG, MIT 2025) reveals a systematic **5-layer semantic loss cascade**:
 
-babel-memory solves layers 2-5 with three focused utilities: language detection, FTS pre-tokenization, and bilingual prompt templates.
+| Layer | What Breaks | Impact |
+|-------|-------------|--------|
+| Token estimation | `string.length / 4` underestimates CJK by **4-8x** | Context overflow |
+| BM25 tokenization | Whitespace split on Chinese = **0 matches** | Hybrid search degrades to vector-only |
+| LLM extraction | English-only KG/summary prompts | **-24% factual accuracy** on non-English |
+| Cross-lingual retrieval | Query/document language mismatch | **-56% recall** (XRAG benchmark) |
+| Auto-evaluation | LLM-as-Judge overestimates non-English quality | Problems go **systematically unreported** |
+
+**babel-memory is the fix for layers 2-4.** Three functions. One `npm install`. Zero config.
+
+## Before & After
+
+```
+BEFORE babel-memory:
+  Store: "机器学习在自然语言处理中的应用"
+  BM25 search("机器学习") → [] (zero results)
+  KG extract → English prompt struggles with Chinese entities
+  
+AFTER babel-memory:
+  Store: "机器学习在自然语言处理中的应用"
+         → fts_text: "机器 学习 机器学习 自然 语言 处理 自然语言 应用"
+  BM25 search("机器学习") → [match found!]
+  KG extract → Chinese prompt with CJK few-shot examples
+```
 
 ## Install
 
@@ -26,92 +46,95 @@ npm install babel-memory
 bun add babel-memory
 ```
 
+~2MB total (jieba-wasm). Zero native compilation. Works everywhere.
+
 ## Quick Start
 
-### Detect Language
-
 ```typescript
-import { detectLanguage } from "babel-memory";
+import { detectLanguage, initTokenizer, tokenizeForFts, getKgPrompt } from "babel-memory";
 
-detectLanguage("今天的会议讨论了新的架构方案");  // "zh"
-detectLanguage("今日のミーティングで新しい設計を議論した");  // "ja"
-detectLanguage("오늘 회의에서 새로운 아키텍처를 논의했습니다");  // "ko"
-detectLanguage("We discussed the new architecture today");  // "en"
-```
-
-### Tokenize for FTS
-
-```typescript
-import { initTokenizer, tokenizeForFts } from "babel-memory";
-
-// Initialize jieba-wasm (call once at startup)
+// 1. Initialize once at startup
 await initTokenizer();
 
-// Chinese: jieba word segmentation
-tokenizeForFts("知识图谱提取", "zh");
-// → "知识 图谱 知识图谱 提取"
+// 2. Detect language (zero dependencies, pure Unicode analysis)
+detectLanguage("这个项目的架构设计非常优秀");  // "zh"
+detectLanguage("東京タワーはとても高いです");    // "ja" (not "zh" — hiragana detected first)
+detectLanguage("이 프로젝트는 매우 훌륭합니다"); // "ko"
 
-// Japanese: character-level split
-tokenizeForFts("新しい設計", "ja");
-// → "新 し い 設 計"
+// 3. Pre-tokenize for BM25 (the core fix)
+tokenizeForFts("机器学习很有趣", "zh");
+// → "机器 学习 很 有趣"  (jieba word segmentation)
 
-// English: passthrough
-tokenizeForFts("knowledge graph", "en");
-// → "knowledge graph"
+tokenizeForFts("東京タワー", "ja");
+// → "東 京 タ ワ ー"  (character-level split)
+
+// 4. Get bilingual prompts for LLM calls
+const { system, userTemplate } = getKgPrompt("zh");
+// system → "你是知识图谱提取助手..."
+// Predicates stay English (normalized keys), examples are bilingual
 ```
-
-### Get Bilingual Prompts
-
-```typescript
-import { getKgPrompt, getSessionPrompt } from "babel-memory";
-
-// Knowledge graph extraction prompt (Chinese)
-const kg = getKgPrompt("zh");
-// kg.system → "你是知识图谱提取助手..."
-// kg.userTemplate → template with {text} placeholder
-
-// Session summary prompt (English)
-const session = getSessionPrompt("en");
-// session.system → "You are a session summarizer..."
-// session.dimensionLabels → { user_intent: "User intent and requests", ... }
-```
-
-## API Reference
-
-| Function | Parameters | Returns | Description |
-|---|---|---|---|
-| `detectLanguage` | `text: string` | `"zh" \| "ja" \| "ko" \| "en"` | Detect dominant language via Unicode script analysis |
-| `initTokenizer` | none | `Promise<void>` | Initialize jieba-wasm. Call once at startup. Idempotent. |
-| `tokenizeForFts` | `text: string, language: string` | `string` | Pre-tokenize text for BM25 FTS indexing |
-| `getKgPrompt` | `lang: string` | `KgPrompt` | Get bilingual knowledge graph extraction prompt |
-| `getSessionPrompt` | `lang: string` | `SessionPrompt` | Get bilingual session summary prompt |
-
-## Supported Languages
-
-| Code | Language | Tokenization Strategy |
-|---|---|---|
-| `zh` | Chinese | jieba search-mode word segmentation |
-| `ja` | Japanese | Character-level split (CJK + kana) |
-| `ko` | Korean | Character-level split (hangul + CJK) |
-| `en` | English | Passthrough (no preprocessing needed) |
 
 ## How It Works
 
-Standard FTS engines (SQLite FTS5, Tantivy, etc.) tokenize text by splitting on whitespace and punctuation. This works for English but fails for CJK languages where words are not separated by spaces.
-
-babel-memory uses a **pre-tokenization** approach:
+The key insight: **pre-tokenize CJK text before FTS indexing**.
 
 ```
-Chinese input:  "知识图谱提取"
-                     ↓ jieba word segmentation
-Pre-tokenized:  "知识 图谱 知识图谱 提取"
-                     ↓ standard FTS tokenizer
-FTS tokens:     ["知识", "图谱", "知识图谱", "提取"]
+Standard FTS pipeline (broken for Chinese):
+  "知识图谱提取" → whitespace split → ["知识图谱提取"] → 1 giant token → no matches
+
+babel-memory pipeline (fixed):
+  "知识图谱提取" → jieba segmentation → "知识 图谱 知识图谱 提取" → whitespace split → 4 tokens → matches!
 ```
 
-By inserting spaces between semantic units *before* indexing, any whitespace-based FTS engine can correctly index and search CJK text. jieba's search mode produces overlapping segments for better recall (e.g., both "知识" and "知识图谱" are indexed).
+This works with **any** whitespace-based FTS engine: Tantivy (LanceDB), SQLite FTS5, Elasticsearch, Meilisearch. No engine modifications needed.
 
-For Japanese and Korean, character-level splitting is used as a lightweight alternative that provides reasonable recall without requiring language-specific dictionaries.
+### Detection Order Matters
+
+Japanese uses kanji (CJK characters). Naive CJK detection would misclassify Japanese as Chinese. babel-memory checks **language-unique scripts first**:
+
+1. Hiragana/Katakana present? → Japanese (unique to Japanese)
+2. Hangul present? → Korean (unique to Korean)  
+3. CJK Ideographs without Japanese/Korean markers? → Chinese
+4. Default → English
+
+## API Reference
+
+| Function | Input | Output | Description |
+|----------|-------|--------|-------------|
+| `detectLanguage(text)` | `string` | `"zh" \| "ja" \| "ko" \| "en"` | Unicode script ratio analysis. Zero dependencies. |
+| `initTokenizer()` | — | `Promise<void>` | Load jieba-wasm. Call once. Idempotent. |
+| `tokenizeForFts(text, lang)` | `string, string` | `string` | Pre-tokenize for BM25. Chinese=jieba, Ja/Ko=char-split, En=passthrough. |
+| `getKgPrompt(lang)` | `string` | `{ system, userTemplate }` | Bilingual KG triple extraction prompt. `{text}` placeholder. |
+| `getSessionPrompt(lang)` | `string` | `{ system, dimensionLabels }` | Bilingual session summary prompt. 9 structured dimensions. |
+
+## Supported Languages
+
+| Code | Language | FTS Strategy | Quality |
+|------|----------|-------------|---------|
+| `zh` | Chinese | jieba search-mode (word-level, overlapping) | Production |
+| `ja` | Japanese | Character-level CJK + kana split | Functional (lindera planned) |
+| `ko` | Korean | Character-level hangul + CJK split | Functional (mecab-ko planned) |
+| `en` | English | Passthrough (no preprocessing) | Native |
+
+Architecture is extensible — Arabic, Hindi, Thai support planned.
+
+## Who Is This For
+
+- **AI memory system builders** — if you're building on LanceDB, ChromaDB, or any vector+BM25 hybrid store
+- **RAG pipeline developers** — if your users speak CJK languages and BM25 returns empty
+- **MCP server authors** — if your memory tools need multilingual support
+- **Anyone** who's noticed their AI agent "forgets" non-English conversations
+
+## Used By
+
+- [RecallNest](https://github.com/AliceLJY/recallnest) — MCP-native memory system (first integration)
+
+## Research References
+
+This library is informed by findings from:
+- MMTEB: Massive Multilingual Text Embedding Benchmark (arXiv 2502.13595)
+- XRAG: Cross-lingual Retrieval-Augmented Generation (arXiv 2505.10089)
+- MIT: Tokenization Changes Meaning in LLMs (Computational Linguistics, 2025)
 
 ## License
 
