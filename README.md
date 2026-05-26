@@ -220,7 +220,6 @@ babel-memory is **not** a memory system — it's a preprocessing layer that make
 ## Used By
 
 - [RecallNest](https://github.com/AliceLJY/recallnest) — MCP-native shared memory for Claude Code, Codex, and Gemini CLI
-- [UltraMemory](https://github.com/win4r/UltraMemory) — Universal AI agent long-term memory engine ([integration PR](https://github.com/win4r/UltraMemory/pull/14))
 
 ## Research References
 

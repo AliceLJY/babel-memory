@@ -220,7 +220,6 @@ babel-memory **不是**记忆系统——它是一个预处理层，让任何记
 ## 谁在使用
 
 - [RecallNest](https://github.com/AliceLJY/recallnest) — MCP 原生共享记忆，服务 Claude Code、Codex 和 Gemini CLI
-- [UltraMemory](https://github.com/win4r/UltraMemory) — 通用 AI Agent 长期记忆引擎（[集成 PR](https://github.com/win4r/UltraMemory/pull/14)）
 
 ## 研究参考
 
