@@ -134,7 +134,15 @@ const OWN_SCRIPTS: Record<Language, string[]> = {
   en: ["latin"],
 };
 
-const MIXED_THRESHOLD = 0.15;
+// Spaced scripts (latin, cyrillic-like) only count as "mixed" above this
+// ratio — a few English terms inside Chinese text is normal, not a problem.
+const MIXED_THRESHOLD_SPACED = 0.15;
+// Scripts that NEED segmentation (no word boundaries) count as mixed from a
+// much lower ratio: even a 3% Chinese island inside English text is
+// unsearchable if it passes through unsegmented. A 0.15 bar here made
+// isMixed blind to exactly the texts the mixed routing exists for.
+const MIXED_THRESHOLD_SEGMENTED = 0.02;
+const SEGMENTED_SCRIPTS = new Set(["cjk", "ja", "ko", "th"]);
 
 /**
  * Like detectLanguage, but also reports per-script ratios and whether the
@@ -159,8 +167,12 @@ export function detectLanguageDetailed(text: string): LanguageDetail {
     latin: c.latin / total,
   };
   const own = new Set(OWN_SCRIPTS[language]);
-  const isMixed = Object.entries(scripts).some(
-    ([key, ratio]) => !own.has(key) && ratio >= MIXED_THRESHOLD
-  );
+  const isMixed = Object.entries(scripts).some(([key, ratio]) => {
+    if (own.has(key)) return false;
+    const bar = SEGMENTED_SCRIPTS.has(key)
+      ? MIXED_THRESHOLD_SEGMENTED
+      : MIXED_THRESHOLD_SPACED;
+    return ratio >= bar;
+  });
   return { language, scripts, isMixed };
 }

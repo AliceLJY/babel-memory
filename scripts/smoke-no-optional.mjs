@@ -1,8 +1,10 @@
 // Smoke test for the zero-dependency install path.
 // MUST be run from a directory that contains ./dist but NO node_modules,
 // so every optional package import fails and the fallback chain engages.
-// CI copies dist/ + this file to a temp dir; locally:
-//   bun run build && mkdir -p /tmp/bm-smoke && cp -r dist scripts/smoke-no-optional.mjs /tmp/bm-smoke/ && (cd /tmp/bm-smoke && node smoke-no-optional.mjs)
+// CI copies dist/ + package.json + this file to a temp dir; locally:
+//   bun run build && mkdir -p /tmp/bm-smoke && cp -r dist package.json scripts/smoke-no-optional.mjs /tmp/bm-smoke/ && (cd /tmp/bm-smoke && node smoke-no-optional.mjs)
+// (package.json carries "type":"module" so dist/index.js parses as ESM the
+//  same way it does inside a real npm install)
 import {
   detectLanguage,
   detectLanguageExtended,

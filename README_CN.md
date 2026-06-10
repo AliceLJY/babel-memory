@@ -121,9 +121,11 @@ getKgPrompt("ko"); // → 英文 prompt（用无关第三语言写指令会伤�
 // 6. 进阶工具
 import { detectLanguageDetailed, detectLanguageExtended, getLoadedTokenizers } from "babel-memory";
 
-detectLanguageDetailed("我在用 TypeScript 写 hook");
-// → { language: "en", scripts: { cjk: 0.38, latin: 0.62, ... }, isMixed: true }
+detectLanguageDetailed("我在用 TypeScript 给 RecallNest 写 tokenizer hook");
+// → { language: "en", scripts: { cjk: 0.13, latin: 0.83, ... }, isMixed: true }
 // AI 对话里中英混排是常态——isMixed 告诉你何时发生。
+// 需要分词的文字系统（CJK/泰文）从约 2% 占比起就标记混排：
+// 哪怕一小段中文岛不分词也是搜不到的。
 // （无论如何，嵌入的中文片段都会被自动分词，见下文。）
 
 detectLanguageExtended("Das ist ein guter Tag");
@@ -166,7 +168,7 @@ babel-memory 流程（修复）:
 
 ### 混排文本（AI 对话的真实形态）
 
-真实的 Agent 对话大量中英混排：*"I fixed 机器学习模型 using TensorFlow"*。按字符比例检测会把它判成 `en`——以前嵌在其中的中文片段会原样穿过、无法搜索。现在 `tokenizeForFts(text, "en")` 会探测内嵌的中文/谚文/泰文片段，把每段路由给对应的分词器，拉丁部分保持原样。需要显式的混排信号时用 `detectLanguageDetailed()`。
+真实的 Agent 对话大量中英混排：*"I fixed 机器学习模型 using TensorFlow"*。按字符比例检测会依占比落到 `zh` 或 `en`——现在两条路都能正确处理混排：`zh` 路径的分词器会原样保留英文 token，`en` 路径会探测内嵌的中文/谚文/泰文片段并把每段路由给对应分词器。v2.1 之前，被判成 `en` 的文本里的中文岛会原样穿过、无法搜索。需要显式的混排信号时用 `detectLanguageDetailed()`。
 
 ### 检测顺序很重要
 

@@ -29,6 +29,10 @@
 - **`getKgPrompt("ko")` / `getSessionPrompt("ko")` now return the English template** (previously the Chinese one — a prompt in an unrelated third language hurt extraction quality for Korean content).
 - `tokenizeForFts` output for fullwidth characters changed (NFKC folding). Re-index for consistency if your corpus contains fullwidth forms.
 
+### ⚠️ Migration: re-index existing FTS data
+
+If you indexed documents with **2.0.0 on any machine other than the publishing machine**, your stored `fts_text` for Chinese/Japanese is character-level (or raw, if the hook wasn't active) because of the issue #1 path bug — while 2.1.0 queries produce word-level tokens (+bigrams). Old index and new queries share almost no tokens, so Chinese BM25 recall on old rows collapses. **Rebuild the FTS field with 2.1.0's `tokenizeForFts` over your corpus.** Hybrid (vector+BM25) stores degrade more gracefully — the vector path is unaffected — but the BM25 contribution still needs the rebuild. The NFKC change above folds into the same re-index pass.
+
 ### Notes
 
 - Korean stays deliberately syllable-level: Korean is agglutinative ("프로젝트는" = "프로젝트" + topic particle), so word-level tokens break BM25 partial matching. Syllable split keeps recall stable.

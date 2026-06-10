@@ -22,17 +22,20 @@ jobs:
           if grep -rq "/Users/" dist/; then
             echo "::error::build-machine absolute path leaked into dist"; exit 1
           fi
-          # external deps must stay as dynamic imports, not inlined source
-          for dep in jieba-wasm wordcut tinyld; do
-            if ! grep -q "\"$dep\"" dist/index.js; then
-              echo "::error::$dep specifier missing from dist — inlined or dropped?"; exit 1
+          # ALL five optional deps must stay as runtime specifiers in BOTH
+          # bundle formats — a missing one means it was inlined or dropped
+          for bundle in dist/index.js dist/index.cjs; do
+            for dep in jieba-wasm @sglkc/kuromoji wordcut snowball-stemmers tinyld; do
+              if ! grep -q "\"$dep\"" "$bundle"; then
+                echo "::error::$dep specifier missing from $bundle — inlined or dropped?"; exit 1
+              fi
+            done
+            # an inlined bundle is ~1MB; external build is ~20KB
+            size=$(wc -c < "$bundle")
+            if [ "$size" -gt 200000 ]; then
+              echo "::error::$bundle is ${size} bytes — optional deps likely inlined again"; exit 1
             fi
           done
-          # an inlined bundle is ~1MB; external build is ~20KB
-          size=$(wc -c < dist/index.js)
-          if [ "$size" -gt 200000 ]; then
-            echo "::error::dist/index.js is ${size} bytes — optional deps likely inlined again"; exit 1
-          fi
 
   node-compat:
     name: Node ${{ matrix.node }} CJS/ESM smoke
@@ -81,5 +84,9 @@ jobs:
         run: |
           mkdir -p /tmp/bm-smoke
           cp -r dist scripts/smoke-no-optional.mjs /tmp/bm-smoke/
+          # package.json must come along: it carries "type":"module" so the
+          # ESM bundle resolves the way a real npm install would, instead of
+          # relying on Node's ambiguous-.js reparse fallback
+          cp package.json /tmp/bm-smoke/
           cd /tmp/bm-smoke
           node smoke-no-optional.mjs

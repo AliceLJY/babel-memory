@@ -121,9 +121,11 @@ getKgPrompt("ko"); // → English prompt (instructions in a third language hurt 
 // 6. Optional power tools
 import { detectLanguageDetailed, detectLanguageExtended, getLoadedTokenizers } from "babel-memory";
 
-detectLanguageDetailed("我在用 TypeScript 写 hook");
-// → { language: "en", scripts: { cjk: 0.38, latin: 0.62, ... }, isMixed: true }
+detectLanguageDetailed("我在用 TypeScript 给 RecallNest 写 tokenizer hook");
+// → { language: "en", scripts: { cjk: 0.13, latin: 0.83, ... }, isMixed: true }
 // AI conversation logs mix CN/EN constantly — isMixed tells you when.
+// Segmentation-needing scripts (CJK/Thai) flag mixed from a ~2% ratio:
+// even a tiny Chinese island is unsearchable if left unsegmented.
 // (Embedded CJK runs are segmented automatically either way; see below.)
 
 detectLanguageExtended("Das ist ein guter Tag");
@@ -166,7 +168,7 @@ Raw Chinese text in a whitespace FTS engine doesn't degrade — it **fails compl
 
 ### Mixed-script text (the AI-conversation reality)
 
-Real agent conversations constantly mix languages: *"I fixed 机器学习模型 using TensorFlow"*. Ratio-based detection classifies this as `en` — and the Chinese island used to pass through unsegmented and unsearchable. Now `tokenizeForFts(text, "en")` detects embedded CJK/Hangul/Thai runs and routes each run to its proper tokenizer while Latin parts stay untouched. Use `detectLanguageDetailed()` if you want the mixing signal explicitly.
+Real agent conversations constantly mix languages: *"I fixed 机器学习模型 using TensorFlow"*. Ratio-based detection lands on `zh` or `en` depending on the balance — and either route now handles the mix correctly: the `zh` path's tokenizers keep Latin tokens intact, and the `en` path detects embedded CJK/Hangul/Thai runs and routes each run to its proper tokenizer. Before v2.1, a Chinese island inside `en`-classified text passed through unsegmented and unsearchable. Use `detectLanguageDetailed()` if you want the mixing signal explicitly.
 
 ### Detection Order Matters
 

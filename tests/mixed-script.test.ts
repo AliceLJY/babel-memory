@@ -19,6 +19,23 @@ describe("detectLanguageDetailed", () => {
     expect(d.scripts.cjk).toBeGreaterThan(0.1);
   });
 
+  test("LOW-ratio CJK island still flags mixed (the case the old 0.15 bar missed)", () => {
+    // 2 Chinese chars in a long English sentence: ~3% ratio. These are
+    // exactly the texts mixed routing exists for — must not be invisible.
+    const d = detectLanguageDetailed(
+      "Implemented the new tokenizer fallback chain in TypeScript today and fixed the 分词 bug"
+    );
+    expect(d.language).toBe("en");
+    expect(d.isMixed).toBe(true);
+  });
+
+  test("a few English terms inside Chinese is NOT flagged as mixed", () => {
+    // latin secondary keeps the 0.15 bar: "用 API 调试" style is normal zh
+    const d = detectLanguageDetailed("今天调试了一下接口，用的是 API 网关，整体还算顺利");
+    expect(d.language).toBe("zh");
+    expect(d.isMixed).toBe(false);
+  });
+
   test("pure English: not mixed, no false positives", () => {
     const d = detectLanguageDetailed("The quick brown fox jumps over the lazy dog");
     expect(d.language).toBe("en");
