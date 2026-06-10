@@ -69,13 +69,14 @@
 npm install babel-memory
 
 # 按需添加语言包：
-npm install jieba-wasm          # 中文
-npm install @sglkc/kuromoji     # 日文
+npm install jieba-wasm          # 中文（最高质量）
+npm install @sglkc/kuromoji     # 日文（最高质量）
 npm install wordcut             # 泰文
 npm install snowball-stemmers   # 20 种欧洲语言（德语、法语、西班牙语、俄语等）
+npm install tinyld              # 拉丁字母语言自动检测（de/fr/es/...）
 ```
 
-**用什么装什么。** 核心包零依赖——语言包在运行时懒加载。如果某个包未安装，babel-memory 会优雅降级到更简单的策略（字符级切分或原样返回），绝不会崩溃。
+**用什么装什么。** 核心包零依赖——语言包在运行时懒加载。而且得益于内置的 **Intl.Segmenter 层**（Node 16+/Bun/Deno/浏览器自带的 ICU 词典），零依赖安装就已经能获得中文、日文、泰文的**词级分词**——安装语言包则进一步提升质量。绝不会崩溃。
 
 ## 快速上手
 
@@ -103,10 +104,38 @@ tokenizeForFts("東京タワー", "ja");
 tokenizeForFts("Maschinelles Lernen", "de");
 // → "maschinell lern"  （Snowball 词干提取）
 
-// 4. 获取双语 LLM prompt
-const { system, userTemplate } = getKgPrompt("zh");
-// system → "你是知识图谱提取助手..."
-// 谓词保持英文（规范化 key），示例为双语
+// 4. ⚠️ 关键：查询侧必须做同样的分词处理。
+// 分词只有在索引侧和查询侧一致时才能匹配：
+const ftsQuery = tokenizeForFts(userQuery, detectLanguage(userQuery));
+// 存储侧:  "机器学习很有趣" → "机器 学习 很 有趣"  （已索引）
+// 查询侧:  "机器学习"       → "机器 学习"          （命中！）
+// 忘记这一步 = 拿整串 "机器学习" 去匹配分词后的文本 = 零结果。
+// 这是 FTS 预分词方案最经典的坑。
+
+// 5. 获取语言匹配的 LLM prompt
+const { system, userTemplate } = getKgPrompt("zh"); // → 中文 prompt
+getKgPrompt("ja"); // → 日语原生 prompt
+getKgPrompt("ko"); // → 英文 prompt（用无关第三语言写指令会伤害质量）
+// 所有变体中谓词都保持英文（规范化 key）
+
+// 6. 进阶工具
+import { detectLanguageDetailed, detectLanguageExtended, getLoadedTokenizers } from "babel-memory";
+
+detectLanguageDetailed("我在用 TypeScript 写 hook");
+// → { language: "en", scripts: { cjk: 0.38, latin: 0.62, ... }, isMixed: true }
+// AI 对话里中英混排是常态——isMixed 告诉你何时发生。
+// （无论如何，嵌入的中文片段都会被自动分词，见下文。）
+
+detectLanguageExtended("Das ist ein guter Tag");
+// → 装了 tinyld 时返回 "de"；未装时返回 "en"（优雅降级）
+
+tokenizeForFts("机器学习的应用", "zh", { removeStopwords: true });
+// → "机器 学习 应用"  （"的"被移除；opt-in，默认关闭）
+
+getLoadedTokenizers(); // → ["jieba", "kuromoji", "tinyld"] — 验证部署配置
+
+// 按需加载（kuromoji 单独就要 ~1-2s + ~17MB 内存）：
+await initTokenizer({ languages: ["zh", "de"] });
 ```
 
 ## 工作原理
@@ -123,6 +152,22 @@ babel-memory 流程（修复）:
 
 这个方案兼容**任何**基于空格的 FTS 引擎：Tantivy（LanceDB）、SQLite FTS5、Elasticsearch、Meilisearch。无需修改引擎本身。
 
+### 实测数据：差距不是一点点
+
+`bun bench/recall-benchmark.ts` — SQLite FTS5，20 条中文文档，12 个查询：
+
+| 档位 | 召回率 | 零命中查询数 |
+|------|--------|-------------|
+| 原始文本（多数记忆系统的现状） | **0.0%** | 12/12 |
+| 零依赖档（Intl.Segmenter + bigram） | **100%** | 0/12 |
+| 完整档（jieba） | **100%** | 0/12 |
+
+原始中文文本在空格分词的 FTS 引擎里不是"效果差"——是**完全失效**：每一个查询都返回空。
+
+### 混排文本（AI 对话的真实形态）
+
+真实的 Agent 对话大量中英混排：*"I fixed 机器学习模型 using TensorFlow"*。按字符比例检测会把它判成 `en`——以前嵌在其中的中文片段会原样穿过、无法搜索。现在 `tokenizeForFts(text, "en")` 会探测内嵌的中文/谚文/泰文片段，把每段路由给对应的分词器，拉丁部分保持原样。需要显式的混排信号时用 `detectLanguageDetailed()`。
+
 ### 检测顺序很重要
 
 日文使用汉字（CJK 字符）。简单的 CJK 检测会把日文误判为中文。babel-memory 优先检测**语言独有的文字系统**：
@@ -138,17 +183,22 @@ babel-memory 流程（修复）:
 
 ## 优雅降级
 
-babel-memory **绝不会**因缺少可选包而崩溃。每种语言都有降级链：
+babel-memory **绝不会**因缺少可选包而崩溃。每种语言都有**三档**降级链——v2.1 起中间档（运行时内置的 ICU `Intl.Segmenter`）让零依赖安装也有词级质量：
 
-| 语言 | 安装了对应包 | 未安装对应包 |
-|------|-------------|-------------|
-| 中文 | jieba 词级分词 | 字符级 CJK 切分 |
-| 日文 | kuromoji 词级分词 | 字符级 CJK + 假名切分 |
-| 泰文 | wordcut 分词 | 原样返回 |
-| 欧洲语言（德、法、西...） | Snowball 词干提取 | 原样返回 |
-| 韩文 | 字符级切分 | 字符级切分（无需额外包） |
-| 阿拉伯语、印地语、俄语 | 自动检测 | 原样返回（阿拉伯语、俄语可用 Snowball 词干提取） |
-| 英文 | 原样返回 | 原样返回 |
+| 语言 | 第一档：已装语言包 | 第二档：零依赖（内置 ICU） | 第三档：兜底 |
+|------|-------------------|---------------------------|-------------|
+| 中文 | jieba 搜索模式分词 | ICU 词级分词 + CJK bigram | 字符切分 |
+| 日文 | kuromoji 分词 | ICU 词级分词 + CJK bigram | 字符切分 |
+| 泰文 | wordcut 分词 | ICU 词级分词 | 原样返回 |
+| 欧洲语言（德、法、西...） | Snowball 词干提取 | 原样返回 | 原样返回 |
+| 韩文 | — | 音节级切分（刻意设计，见下） | 同左 |
+| 阿拉伯语、俄语 | Snowball 词干提取 | 原样返回 | 原样返回 |
+| 印地语 | — | 原样返回（天城文带空格） | 同左 |
+| 英文 | — | 原样返回 | 同左 |
+
+> **为什么要 bigram？** ICU 会把复合词整词输出（"東京タワー"是一个 token），部分匹配查询"タワー"就失配了。长度 ≥ 3 的 CJK token 在索引侧和查询侧都做 bigram 扩展——与 lunr-languages 的做法一致。
+>
+> **韩文为什么是音节级？** 韩语是黏着语："프로젝트는" = "프로젝트" + 主题助词。词级 token 会让查询"프로젝트"完全失配；音节切分让 BM25 部分匹配保持稳定。
 
 每个缺失的包只会输出一次警告日志，让你知道安装什么可以获得更好的质量。应用程序始终正常运行。
 
@@ -157,14 +207,21 @@ babel-memory **绝不会**因缺少可选包而崩溃。每种语言都有降级
 | 函数 | 输入 | 输出 | 说明 |
 |------|------|------|------|
 | `detectLanguage(text)` | `string` | `Language` | 基于 Unicode 字符比例分析。检测 zh、ja、ko、th、ar、hi、ru、en，零依赖。 |
-| `initTokenizer()` | — | `Promise<void>` | 并行加载所有已安装的分词器。调用一次即可，幂等。任何分词器加载失败不影响整体。 |
-| `tokenizeForFts(text, lang)` | `string, string` | `string` | BM25 预分词。按语言路由到对应策略。 |
-| `getKgPrompt(lang)` | `string` | `{ system, userTemplate }` | 双语知识图谱三元组提取 prompt，模板中含 `{text}` 占位符。 |
-| `getSessionPrompt(lang)` | `string` | `{ system, dimensionLabels }` | 双语会话总结 prompt，9 个结构化维度。 |
+| `detectLanguageDetailed(text)` | `string` | `LanguageDetail` | 同上 + 各文字系统占比和混排标志 `isMixed`。 |
+| `detectLanguageExtended(text)` | `string` | `string` | 装了 `tinyld` 时把拉丁字母文本细分为 de/fr/es/...；未装时等同 `detectLanguage`。 |
+| `initTokenizer(opts?)` | `{ languages?: string[] }` | `Promise<void>` | 并行加载分词器。传 `languages` 可按需加载。幂等，加载失败不影响整体。 |
+| `tokenizeForFts(text, lang, opts?)` | `string, string, { removeStopwords? }` | `string` | 先 NFKC 归一化，再 BM25 预分词。**索引侧和查询侧都要调用**。 |
+| `getLoadedTokenizers()` | — | `string[]` | 诊断：当前实际加载了哪些可选包。 |
+| `segmentWithIntl(text, locale)` | `string, string` | `string \| null` | 原始 ICU 词级分词构件。不可用时返回 `null`。 |
+| `intlWithBigrams(text, locale)` | `string, string` | `string \| null` | ICU 分词 + CJK bigram 扩展（zh/ja 降级路径用的就是它）。 |
+| `getKgPrompt(lang)` | `string` | `{ system, userTemplate }` | KG 三元组提取 prompt。zh → 中文，ja → 日语，其余 → 英文。 |
+| `getSessionPrompt(lang)` | `string` | `{ system, dimensionLabels }` | 会话总结 prompt，同样的语言路由，9 个结构化维度。 |
 
 **类型：** `Language = "zh" | "ja" | "ko" | "th" | "ar" | "hi" | "ru" | "en"`
 
 `tokenizeForFts` 也接受任何 Snowball 语言代码（如 `"de"`、`"fr"`、`"es"`）作为字符串参数。
+
+> **关于 script 检测的局限**：`detectLanguage` 无法区分共用拉丁字母的语言——德语、法语、西班牙语都会返回 `"en"`。这正是 `detectLanguageExtended` + 可选包 `tinyld` 存在的意义：装上它，拉丁字母语言就能自动识别，补全"自动检测 → Snowball 词干提取"的闭环。繁体中文说明：ICU 和 jieba 都能处理繁体文本，但 jieba 词典以简体为主；简繁混合语料建议先用外部工具（OpenCC）归一化再索引。
 
 ## 支持的语言
 
@@ -195,6 +252,8 @@ babel-memory **绝不会**因缺少可选包而崩溃。每种语言都有降级
 
 总计：**8 种自动检测 + 14 种显式 Snowball = 27+ 种语言**（阿拉伯语和俄语在两个列表中都有出现）。
 
+装上可选包 `tinyld` 后，`detectLanguageExtended()` 可以自动检测拉丁字母语言——调用方无需预知语言，27+ 种语言全部自动可达。
+
 ## 适用场景
 
 - **AI 记忆系统开发者** — 在 LanceDB、ChromaDB 或任何向量+BM25 混合存储上构建
@@ -208,12 +267,15 @@ babel-memory **绝不会**因缺少可选包而崩溃。每种语言都有降级
 
 | | babel-memory | mem0 | Letta | LanceDB 原生 FTS |
 |---|---|---|---|---|
-| CJK 词级分词 | jieba / kuromoji | 无 | 无 | 字符 bigram |
+| CJK 词级分词 | jieba / kuromoji，内置 ICU 兜底 | 无 | 无 | 字符 bigram |
+| 零安装 CJK 质量 | **词级**（Intl.Segmenter + bigram） | — | — | 字符 bigram |
+| 中英混排处理 | script 分段路由 | 无 | 无 | 无 |
 | 欧洲语言词干提取 | Snowball (20 种) | 无 | 无 | 无 |
-| 语言自动检测 | 8 种文字系统 | 无 | 无 | 无 |
-| 双语 KG 提取 prompt | 中英双语 | 仅英文 | 仅英文 | 不适用 |
+| 语言自动检测 | 8 种文字系统 + 可选 tinyld（62 种） | 无 | 无 | 无 |
+| 语言匹配的 LLM prompt | 英 + 中 + 日 | 仅英文 | 仅英文 | 不适用 |
 | 必需依赖 | **0** | 重量级 | 重量级 | 不适用 |
 | 兼容任意 FTS 引擎 | Tantivy, SQLite FTS5, ES, Meilisearch | 锁定 | 锁定 | 仅 LanceDB |
+| 中文 BM25 实测召回 | 100%（raw 是 0%——见 bench/） | 未测 | 未测 | 部分 |
 
 babel-memory **不是**记忆系统——它是一个预处理层，让任何记忆系统都能正确处理多语言内容。
 

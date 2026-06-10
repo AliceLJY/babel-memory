@@ -1,0 +1,43 @@
+# Changelog
+
+## 2.1.0 (2026-06-11)
+
+### Fixed
+
+- **Packaging**: `dist` was ESM-only with no `"type"` declaration and no `exports` map — `require('babel-memory')` crashed on Node < 22.12, and `import` triggered a double-parse warning on every Node. Now ships dual ESM (`dist/index.js`) + CJS (`dist/index.cjs`) builds with a proper `exports` map, `files`, and `engines` (`node >= 18`).
+- **Thai without `wordcut`** no longer degrades to passthrough (one giant token = zero BM25 matches); it now falls back to ICU word segmentation.
+- **Digit runs** are no longer dropped by the Intl fallback path (ICU marks them non-word-like under some locales).
+
+### Added
+
+- **Intl.Segmenter middle fallback tier** — zero-dependency installs now get *word-level* segmentation for Chinese, Japanese and Thai via the runtime's built-in ICU dictionaries (previously: per-character split / passthrough). Long CJK compounds are expanded with bigrams so partial queries like `タワー` still match `東京タワー` (same approach as lunr-languages, same multi-granularity philosophy as jieba's `cut_for_search`).
+- **Mixed-script routing** — text classified as `en` that embeds CJK/Hangul/Thai runs (the norm in AI conversation logs: *"I fixed 机器学习模型 yesterday"*) now has those runs segmented instead of passing through as unsearchable blobs.
+- `detectLanguageDetailed()` — per-script ratios + `isMixed` flag.
+- `detectLanguageExtended()` + optional **tinyld** integration (5th optional dependency) — refines Latin-script text into `de`/`fr`/`es`/... so Snowball stemming becomes reachable via auto-detection. Without tinyld it behaves exactly like `detectLanguage()`.
+- **NFKC normalization** at the `tokenizeForFts` entry: fullwidth Latin/digits fold to ASCII, halfwidth katakana folds to fullwidth — the same folding ES/Lucene ICU analyzers apply.
+- **Stopword removal (opt-in)**: `tokenizeForFts(text, lang, { removeStopwords: true })` with built-in minimal zh/ja/en tables.
+- `initTokenizer({ languages: [...] })` — selective loading (kuromoji alone costs ~1-2s + ~17MB; skip it if you only need Chinese).
+- `getLoadedTokenizers()` diagnostic.
+- `segmentWithIntl()` / `intlWithBigrams()` exported as building blocks.
+- **Japanese prompts**: `getKgPrompt("ja")` / `getSessionPrompt("ja")` now return native Japanese templates.
+- **CI**: bun test, Node 18/20/22 CJS+ESM smoke, and a zero-optional-deps job exercising the entire fallback chain.
+- **Benchmark** (`bun bench/recall-benchmark.ts`): SQLite FTS5, 20 Chinese docs / 12 queries — raw text scores **0% recall (12/12 queries return nothing)**; both the zero-dep Intl tier and jieba tier score 100%.
+
+### Changed
+
+- **`getKgPrompt("ko")` / `getSessionPrompt("ko")` now return the English template** (previously the Chinese one — a prompt in an unrelated third language hurt extraction quality for Korean content).
+- `tokenizeForFts` output for fullwidth characters changed (NFKC folding). Re-index for consistency if your corpus contains fullwidth forms.
+
+### Notes
+
+- Korean stays deliberately syllable-level: Korean is agglutinative ("프로젝트는" = "프로젝트" + topic particle), so word-level tokens break BM25 partial matching. Syllable split keeps recall stable.
+
+## 2.0.0 (2026-04-09)
+
+- Lazy-load tokenizer architecture: kuromoji (ja), wordcut (th), snowball-stemmers (20 European languages).
+- `detectLanguage` expanded to Thai, Arabic, Hindi, Russian.
+- Zero required dependencies; all tokenizers optional.
+
+## 1.0.0 (2026-04-09)
+
+- Initial release: jieba-wasm Chinese segmentation, language detection, bilingual KG/session prompts.

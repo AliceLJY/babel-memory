@@ -69,13 +69,14 @@ AFTER babel-memory + snowball-stemmers:
 npm install babel-memory
 
 # Add language packs as needed:
-npm install jieba-wasm          # Chinese
-npm install @sglkc/kuromoji     # Japanese
+npm install jieba-wasm          # Chinese (highest quality)
+npm install @sglkc/kuromoji     # Japanese (highest quality)
 npm install wordcut             # Thai
 npm install snowball-stemmers   # 20 European languages (German, French, Spanish, Russian, etc.)
+npm install tinyld              # auto-detect Latin-script languages (de/fr/es/...)
 ```
 
-**You only pay for what you use.** The core package has zero dependencies — language packs are loaded lazily at runtime. If a package isn't installed, babel-memory gracefully falls back to a simpler strategy (character-level split or passthrough). It never crashes.
+**You only pay for what you use.** The core package has zero dependencies — language packs are loaded lazily at runtime. And thanks to the built-in **Intl.Segmenter tier** (ICU dictionaries shipped with Node 16+/Bun/Deno/browsers), a zero-dependency install already gets **word-level segmentation** for Chinese, Japanese and Thai — installing the packs upgrades quality further. It never crashes.
 
 ## Quick Start
 
@@ -103,10 +104,38 @@ tokenizeForFts("東京タワー", "ja");
 tokenizeForFts("Maschinelles Lernen", "de");
 // → "maschinell lern"  (Snowball stemming)
 
-// 4. Get bilingual prompts for LLM calls
-const { system, userTemplate } = getKgPrompt("zh");
-// system → "你是知识图谱提取助手..."
-// Predicates stay English (normalized keys), examples are bilingual
+// 4. ⚠️ CRITICAL: apply the SAME tokenization to your queries.
+// Tokenization only matches when index side and query side agree:
+const ftsQuery = tokenizeForFts(userQuery, detectLanguage(userQuery));
+// store side:  "机器学习很有趣" → "机器 学习 很 有趣"  (indexed)
+// query side:  "机器学习"       → "机器 学习"          (matches!)
+// forgetting this = querying one giant token "机器学习" against
+// segmented text = zero results. This is THE classic FTS pre-tokenization trap.
+
+// 5. Get language-matched prompts for LLM calls
+const { system, userTemplate } = getKgPrompt("zh"); // → Chinese prompt
+getKgPrompt("ja"); // → native Japanese prompt
+getKgPrompt("ko"); // → English prompt (instructions in a third language hurt quality)
+// Predicates stay English (normalized keys) in every variant
+
+// 6. Optional power tools
+import { detectLanguageDetailed, detectLanguageExtended, getLoadedTokenizers } from "babel-memory";
+
+detectLanguageDetailed("我在用 TypeScript 写 hook");
+// → { language: "en", scripts: { cjk: 0.38, latin: 0.62, ... }, isMixed: true }
+// AI conversation logs mix CN/EN constantly — isMixed tells you when.
+// (Embedded CJK runs are segmented automatically either way; see below.)
+
+detectLanguageExtended("Das ist ein guter Tag");
+// → "de" when tinyld is installed; "en" otherwise (graceful degrade)
+
+tokenizeForFts("机器学习的应用", "zh", { removeStopwords: true });
+// → "机器 学习 应用"  (的 removed; opt-in, default off)
+
+getLoadedTokenizers(); // → ["jieba", "kuromoji", "tinyld"] — verify deployment
+
+// Selective init when you don't need everything (kuromoji alone = ~1-2s + ~17MB):
+await initTokenizer({ languages: ["zh", "de"] });
 ```
 
 ## How It Works
@@ -123,6 +152,22 @@ babel-memory pipeline (fixed):
 
 This works with **any** whitespace-based FTS engine: Tantivy (LanceDB), SQLite FTS5, Elasticsearch, Meilisearch. No engine modifications needed.
 
+### Measured: the gap is not subtle
+
+`bun bench/recall-benchmark.ts` — SQLite FTS5, 20 Chinese documents, 12 queries:
+
+| Tier | Recall | Queries returning nothing |
+|------|--------|---------------------------|
+| raw text (what most memory systems do) | **0.0%** | 12/12 |
+| zero-dependency tier (Intl.Segmenter + bigrams) | **100%** | 0/12 |
+| full tier (jieba) | **100%** | 0/12 |
+
+Raw Chinese text in a whitespace FTS engine doesn't degrade — it **fails completely**. Every single query returns empty.
+
+### Mixed-script text (the AI-conversation reality)
+
+Real agent conversations constantly mix languages: *"I fixed 机器学习模型 using TensorFlow"*. Ratio-based detection classifies this as `en` — and the Chinese island used to pass through unsegmented and unsearchable. Now `tokenizeForFts(text, "en")` detects embedded CJK/Hangul/Thai runs and routes each run to its proper tokenizer while Latin parts stay untouched. Use `detectLanguageDetailed()` if you want the mixing signal explicitly.
+
 ### Detection Order Matters
 
 Japanese uses kanji (CJK characters). Naive CJK detection would misclassify Japanese as Chinese. babel-memory checks **language-unique scripts first**:
@@ -138,17 +183,22 @@ Japanese uses kanji (CJK characters). Naive CJK detection would misclassify Japa
 
 ## Graceful Degradation
 
-babel-memory **never crashes** due to a missing optional package. Each language has a fallback chain:
+babel-memory **never crashes** due to a missing optional package. Each language has a *three-tier* fallback chain — and since v2.1 the middle tier (ICU via `Intl.Segmenter`, built into Node 16+/Bun/Deno) gives zero-dependency installs word-level quality:
 
-| Language | With package installed | Without package |
-|----------|----------------------|-----------------|
-| Chinese | jieba word segmentation | Character-level CJK split |
-| Japanese | kuromoji word segmentation | Character-level CJK + kana split |
-| Thai | wordcut segmentation | Passthrough |
-| European (de, fr, es...) | Snowball stemming | Passthrough |
-| Korean | Character-level split | Character-level split (no extra package needed) |
-| Arabic, Hindi, Russian | Auto-detected | Passthrough (Snowball stemming available for ar, ru) |
-| English | Passthrough | Passthrough |
+| Language | Tier 1: package installed | Tier 2: zero deps (built-in ICU) | Tier 3: last resort |
+|----------|---------------------------|----------------------------------|---------------------|
+| Chinese | jieba search-mode segmentation | ICU word segmentation + CJK bigrams | Character split |
+| Japanese | kuromoji segmentation | ICU word segmentation + CJK bigrams | Character split |
+| Thai | wordcut segmentation | ICU word segmentation | Passthrough |
+| European (de, fr, es...) | Snowball stemming | Passthrough | Passthrough |
+| Korean | — | Syllable-level split (deliberate: see note) | Same |
+| Arabic, Russian | Snowball stemming | Passthrough | Passthrough |
+| Hindi | — | Passthrough (space-delimited) | Same |
+| English | — | Passthrough | Same |
+
+> **Why bigrams?** ICU emits whole compounds ("東京タワー" as one token), which breaks partial-match queries like "タワー". CJK tokens of length ≥ 3 get bigram expansion on both index and query side — the same approach lunr-languages uses.
+>
+> **Why is Korean syllable-level?** Korean is agglutinative: "프로젝트는" = "프로젝트" + topic particle. Word-level tokens make the query "프로젝트" miss entirely; syllable split keeps BM25 partial matching stable.
 
 A warning is logged once per missing package so you know what to install for better quality. Your application keeps working regardless.
 
@@ -157,14 +207,21 @@ A warning is logged once per missing package so you know what to install for bet
 | Function | Input | Output | Description |
 |----------|-------|--------|-------------|
 | `detectLanguage(text)` | `string` | `Language` | Unicode script ratio analysis. Detects zh, ja, ko, th, ar, hi, ru, en. Zero dependencies. |
-| `initTokenizer()` | — | `Promise<void>` | Load all available tokenizers in parallel. Call once. Idempotent. Non-fatal if any fail. |
-| `tokenizeForFts(text, lang)` | `string, string` | `string` | Pre-tokenize for BM25. Routes by language to the appropriate strategy. |
-| `getKgPrompt(lang)` | `string` | `{ system, userTemplate }` | Bilingual KG triple extraction prompt. `{text}` placeholder in template. |
-| `getSessionPrompt(lang)` | `string` | `{ system, dimensionLabels }` | Bilingual session summary prompt. 9 structured dimensions. |
+| `detectLanguageDetailed(text)` | `string` | `LanguageDetail` | Same + per-script ratios and `isMixed` flag for mixed-script text. |
+| `detectLanguageExtended(text)` | `string` | `string` | Refines Latin-script text to de/fr/es/... when `tinyld` is installed; otherwise identical to `detectLanguage`. |
+| `initTokenizer(opts?)` | `{ languages?: string[] }` | `Promise<void>` | Load available tokenizers in parallel. Pass `languages` to load selectively. Idempotent, non-fatal. |
+| `tokenizeForFts(text, lang, opts?)` | `string, string, { removeStopwords? }` | `string` | NFKC-normalize, then pre-tokenize for BM25. Apply to **both** indexed text and queries. |
+| `getLoadedTokenizers()` | — | `string[]` | Diagnostic: which optional packs are actually loaded. |
+| `segmentWithIntl(text, locale)` | `string, string` | `string \| null` | Raw ICU word segmentation building block. `null` when unavailable. |
+| `intlWithBigrams(text, locale)` | `string, string` | `string \| null` | ICU segmentation + CJK bigram expansion (what the zh/ja fallback uses). |
+| `getKgPrompt(lang)` | `string` | `{ system, userTemplate }` | KG triple extraction prompt. zh → Chinese, ja → Japanese, others → English. |
+| `getSessionPrompt(lang)` | `string` | `{ system, dimensionLabels }` | Session summary prompt, same language routing. 9 structured dimensions. |
 
 **Type:** `Language = "zh" | "ja" | "ko" | "th" | "ar" | "hi" | "ru" | "en"`
 
 `tokenizeForFts` also accepts any Snowball language code (e.g., `"de"`, `"fr"`, `"es"`) as a string.
+
+> **Note on script-based detection limits:** `detectLanguage` cannot distinguish languages that share the Latin alphabet — German, French and Spanish all return `"en"`. That's why `detectLanguageExtended` + the optional `tinyld` pack exist: install it and Latin-script languages resolve automatically, completing the auto-detect → Snowball stemming chain. Traditional Chinese note: ICU and jieba both handle zh-Hant text, but jieba's dictionary is Simplified-centric; for mixed Simplified/Traditional corpora consider normalizing externally (OpenCC) before indexing.
 
 ## Supported Languages
 
@@ -195,6 +252,8 @@ A warning is logged once per missing package so you know what to install for bet
 
 Total: **8 auto-detected + 14 explicit Snowball = 27+ languages** (Arabic and Russian appear in both lists).
 
+With the optional `tinyld` pack installed, `detectLanguageExtended()` auto-detects the Latin-script languages too — closing the loop so all 27+ become reachable without the caller knowing the language up front.
+
 ## Who Is This For
 
 - **AI memory system builders** — if you're building on LanceDB, ChromaDB, or any vector+BM25 hybrid store
@@ -208,12 +267,15 @@ Most AI memory / RAG systems treat tokenization as solved. They're not wrong —
 
 | | babel-memory | mem0 | Letta | Raw LanceDB FTS |
 |---|---|---|---|---|
-| CJK word segmentation | jieba / kuromoji | None | None | Character bigrams |
+| CJK word segmentation | jieba / kuromoji, ICU built-in fallback | None | None | Character bigrams |
+| Zero-install CJK quality | **Word-level** (Intl.Segmenter + bigrams) | — | — | Character bigrams |
+| Mixed CN/EN text | Script-run routing | None | None | None |
 | European stemming | Snowball (20 langs) | None | None | None |
-| Language detection | 8 script systems | None | None | None |
-| Bilingual KG prompts | EN + CJK | English only | English only | N/A |
+| Language detection | 8 scripts + optional tinyld (62 langs) | None | None | None |
+| Language-matched LLM prompts | EN + ZH + JA | English only | English only | N/A |
 | Required dependencies | **0** | Heavy | Heavy | N/A |
 | Works with any FTS engine | Tantivy, SQLite FTS5, ES, Meilisearch | Locked in | Locked in | LanceDB only |
+| Measured Chinese BM25 recall | 100% (vs 0% raw — see bench/) | unmeasured | unmeasured | partial |
 
 babel-memory is **not** a memory system — it's a preprocessing layer that makes any memory system work properly across languages.
 
