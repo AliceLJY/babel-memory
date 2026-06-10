@@ -40,11 +40,34 @@ const KG_USER_CJK = `从以下文本中提取知识图谱三元组。
 需要提取的文本：
 {text}`;
 
-const CJK_LANGUAGES = new Set(["zh", "ja", "ko"]);
+const KG_SYSTEM_JA = `あなたはナレッジグラフ抽出アシスタントです。テキストから (主語, 述語, 目的語, 信頼度) のタプルを抽出します。有効な JSON のみを返してください。`;
 
+const KG_USER_JA = `以下のテキストからナレッジグラフのトリプルを抽出してください。
+
+ルール：
+- シンプルな述語を使用（正規化キーとして英語を維持）: uses, created_by, works_at, works_with, is_a, part_of, has, located_in, belongs_to, depends_on, implements, extends, related_to, caused_by, results_in, precedes, follows
+- 関係の明確さに基づいて信頼度 0.0-1.0 を割り当てる
+- 3-8 個のトリプルを抽出
+- JSON を返す: { "triples": [{ "subject": "", "predicate": "", "object": "", "confidence": 0.0 }] }
+
+例：
+入力: "Python は Guido van Rossum によって作られたプログラミング言語です"
+出力: { "triples": [{"subject":"Python","predicate":"is_a","object":"プログラミング言語","confidence":0.95},{"subject":"Python","predicate":"created_by","object":"Guido van Rossum","confidence":0.95}] }
+
+抽出対象のテキスト：
+{text}`;
+
+/**
+ * Prompt language matches content language: zh → Chinese, ja → Japanese.
+ * Korean falls back to English — instructions in a third language (the
+ * old behavior handed Korean users a Chinese prompt) hurt extraction.
+ */
 export function getKgPrompt(lang: string): KgPrompt {
-  if (CJK_LANGUAGES.has(lang)) {
+  if (lang === "zh") {
     return { system: KG_SYSTEM_CJK, userTemplate: KG_USER_CJK };
+  }
+  if (lang === "ja") {
+    return { system: KG_SYSTEM_JA, userTemplate: KG_USER_JA };
   }
   return { system: KG_SYSTEM_EN, userTemplate: KG_USER_EN };
 }

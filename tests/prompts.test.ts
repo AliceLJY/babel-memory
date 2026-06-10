@@ -13,14 +13,22 @@ describe("getKgPrompt", () => {
     expect(system).toContain("knowledge graph");
   });
 
-  test("ja routes to CJK variant", () => {
-    const { system } = getKgPrompt("ja");
-    expect(system).toContain("知识图谱");
+  test("ja gets a native Japanese prompt (not the Chinese one)", () => {
+    const { system, userTemplate } = getKgPrompt("ja");
+    expect(system).toContain("ナレッジグラフ");
+    expect(system).not.toContain("知识图谱");
+    expect(userTemplate).toContain("プログラミング言語");
   });
 
-  test("ko routes to CJK variant", () => {
+  test("ko routes to English (instruction language must not be Chinese)", () => {
     const { system } = getKgPrompt("ko");
-    expect(system).toContain("知识图谱");
+    expect(system).toContain("knowledge graph");
+  });
+
+  test("ja predicates stay English normalized keys", () => {
+    const { userTemplate } = getKgPrompt("ja");
+    expect(userTemplate).toContain("uses");
+    expect(userTemplate).toContain("created_by");
   });
 
   test("CJK variant includes Chinese few-shot examples", () => {
@@ -45,6 +53,17 @@ describe("getSessionPrompt", () => {
   test("en returns English dimension labels", () => {
     const { system, dimensionLabels } = getSessionPrompt("en");
     expect(system).toContain("session summarizer");
+    expect(dimensionLabels.user_intent).toContain("User intent");
+  });
+
+  test("ja returns Japanese dimension labels", () => {
+    const { system, dimensionLabels } = getSessionPrompt("ja");
+    expect(system).toContain("セッション");
+    expect(dimensionLabels.user_intent).toContain("ユーザー");
+  });
+
+  test("ko returns English labels (not Chinese)", () => {
+    const { dimensionLabels } = getSessionPrompt("ko");
     expect(dimensionLabels.user_intent).toContain("User intent");
   });
 

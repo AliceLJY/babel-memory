@@ -49,11 +49,34 @@ const SESSION_SYSTEM_CJK = buildSystemPrompt(
   "你是会话总结助手。分析对话并生成结构化总结。",
 );
 
-const CJK_LANGUAGES = new Set(["zh", "ja", "ko"]);
+const DIMENSIONS_JA: Record<string, string> = {
+  user_intent: "ユーザーの意図とリクエスト",
+  technical_concepts: "主要な技術概念",
+  files_and_code: "関連するファイルとコード",
+  errors_and_fixes: "エラーと修正の記録",
+  problem_solving: "問題解決のプロセス",
+  user_quotes: "ユーザーの発言の引用",
+  unfinished_tasks: "未完了のタスク",
+  current_state: "現在の作業状態",
+  next_steps: "次のステップの提案",
+};
 
+const SESSION_SYSTEM_JA = buildSystemPrompt(
+  DIMENSIONS_JA,
+  "あなたはセッション要約アシスタントです。会話を分析し、構造化された要約を生成してください。",
+);
+
+/**
+ * Prompt language matches content language: zh → Chinese, ja → Japanese.
+ * Korean falls back to English (was: Chinese, which served Korean users
+ * a prompt in an unrelated third language).
+ */
 export function getSessionPrompt(lang: string): SessionPrompt {
-  if (CJK_LANGUAGES.has(lang)) {
+  if (lang === "zh") {
     return { system: SESSION_SYSTEM_CJK, dimensionLabels: DIMENSIONS_CJK };
+  }
+  if (lang === "ja") {
+    return { system: SESSION_SYSTEM_JA, dimensionLabels: DIMENSIONS_JA };
   }
   return { system: SESSION_SYSTEM_EN, dimensionLabels: DIMENSIONS_EN };
 }
