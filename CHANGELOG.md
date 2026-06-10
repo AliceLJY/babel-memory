@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- **Critical ([#1](https://github.com/AliceLJY/babel-memory/issues/1)): optional tokenizers never loaded on any machine but the build machine.** The 2.0.0 `dist` (1MB) inlined the optional dependencies' source *including hardcoded absolute paths from the publishing machine*, so jieba-wasm / kuromoji silently fell back to character-level on every other computer — Windows, Linux, and other Macs alike. 2.1.0 builds with explicit `--external` for all optional deps (dist is now ~20KB); they resolve dynamically from the user's `node_modules` at runtime. CI now guards against path leaks and re-inlining. Thanks @mrqx0195 for the excellent report.
 - **Packaging**: `dist` was ESM-only with no `"type"` declaration and no `exports` map — `require('babel-memory')` crashed on Node < 22.12, and `import` triggered a double-parse warning on every Node. Now ships dual ESM (`dist/index.js`) + CJS (`dist/index.cjs`) builds with a proper `exports` map, `files`, and `engines` (`node >= 18`).
 - **Thai without `wordcut`** no longer degrades to passthrough (one giant token = zero BM25 matches); it now falls back to ICU word segmentation.
 - **Digit runs** are no longer dropped by the Intl fallback path (ICU marks them non-word-like under some locales).

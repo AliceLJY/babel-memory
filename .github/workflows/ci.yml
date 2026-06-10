@@ -17,6 +17,22 @@ jobs:
       - run: bun run build
       - name: typecheck
         run: bunx tsc --noEmit
+      - name: dist must not inline deps or leak build-machine paths (issue #1 guard)
+        run: |
+          if grep -rq "/Users/" dist/; then
+            echo "::error::build-machine absolute path leaked into dist"; exit 1
+          fi
+          # external deps must stay as dynamic imports, not inlined source
+          for dep in jieba-wasm wordcut tinyld; do
+            if ! grep -q "\"$dep\"" dist/index.js; then
+              echo "::error::$dep specifier missing from dist — inlined or dropped?"; exit 1
+            fi
+          done
+          # an inlined bundle is ~1MB; external build is ~20KB
+          size=$(wc -c < dist/index.js)
+          if [ "$size" -gt 200000 ]; then
+            echo "::error::dist/index.js is ${size} bytes — optional deps likely inlined again"; exit 1
+          fi
 
   node-compat:
     name: Node ${{ matrix.node }} CJS/ESM smoke
