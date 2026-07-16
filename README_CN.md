@@ -4,7 +4,7 @@
 
 **首个专门解决 AI 记忆系统多语言盲区的独立工具库。**
 
-*27+ 种语言。零必需依赖。BM25 + RAG 的即插即用修复方案。*
+*22 个受支持语言代码。零必需依赖。BM25 + RAG 的即插即用预处理层。*
 
 > *与 Babel.js 无关。以巴别塔命名——打破 AI Agent 记忆的语言壁垒。*
 
@@ -12,7 +12,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/babel-memory)](https://www.npmjs.com/package/babel-memory)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/AliceLJY/babel-memory?style=social)](https://github.com/AliceLJY/babel-memory)
-[![Languages](https://img.shields.io/badge/Languages-27+-orange)](https://github.com/AliceLJY/babel-memory)
+[![Languages](https://img.shields.io/badge/Language_codes-22-orange)](https://github.com/AliceLJY/babel-memory)
 [![Dependencies](https://img.shields.io/badge/Required_deps-0-brightgreen)](https://github.com/AliceLJY/babel-memory)
 
 [English](README.md) | **简体中文**
@@ -23,7 +23,7 @@
 
 ## 为什么需要这个库
 
-当前所有主流 AI 记忆/RAG 系统——mem0、Letta、基于 LanceDB 的存储——**在非英文内容上都会静默失败**。综合 8 篇学术论文（MMTEB、XRAG、MIT 2025）的研究结果，我们发现了一条系统性的 **5 层语义损失级联**：
+依赖空格切词的检索管线，在不以空格分隔词语的语言上经常损失召回。综合 8 篇学术论文（MMTEB、XRAG、MIT 2025）的研究结果，可以看到一条更广泛的 **5 层语义损失级联**：
 
 | 层级 | 出了什么问题 | 影响 |
 |------|-------------|------|
@@ -72,7 +72,7 @@ npm install babel-memory
 npm install jieba-wasm          # 中文（最高质量）
 npm install @sglkc/kuromoji     # 日文（最高质量）
 npm install wordcut             # 泰文
-npm install snowball-stemmers   # 20 种欧洲语言（德语、法语、西班牙语、俄语等）
+npm install snowball-stemmers   # 本库当前可用的 16 个映射算法
 npm install tinyld              # 拉丁字母语言自动检测（de/fr/es/...）
 ```
 
@@ -154,7 +154,7 @@ babel-memory 流程（修复）:
 
 这个方案兼容**任何**基于空格的 FTS 引擎：Tantivy（LanceDB）、SQLite FTS5、Elasticsearch、Meilisearch。无需修改引擎本身。
 
-### 实测数据：差距不是一点点
+### 小型确定性 smoke benchmark
 
 `bun bench/recall-benchmark.ts` — SQLite FTS5，20 条中文文档，12 个查询：
 
@@ -164,7 +164,7 @@ babel-memory 流程（修复）:
 | 零依赖档（Intl.Segmenter + bigram） | **100%** | 0/12 |
 | 完整档（jieba） | **100%** | 0/12 |
 
-原始中文文本在空格分词的 FTS 引擎里不是"效果差"——是**完全失效**：每一个查询都返回空。
+在这组固定的 20 篇中文文档 / 12 个查询 fixture 上，原始文本没有返回结果，两档预处理都召回了预期文档。它用于防回归，不代表普遍检索质量。
 
 ### 混排文本（AI 对话的真实形态）
 
@@ -252,9 +252,9 @@ babel-memory **绝不会**因缺少可选包而崩溃。每种语言都有**三�
 | `hu` | 匈牙利语 | `tr` | 土耳其语 |
 | `ro` | 罗马尼亚语 | `cs` | 捷克语 |
 
-总计：**8 种自动检测 + 14 种显式 Snowball = 27+ 种语言**（阿拉伯语和俄语在两个列表中都有出现）。
+总计：**22 个不同的受支持语言代码**：8 个自动检测代码，加 14 个额外显式 Snowball 代码；阿拉伯语和俄语已经包含在前 8 个中。
 
-装上可选包 `tinyld` 后，`detectLanguageExtended()` 可以自动检测拉丁字母语言——调用方无需预知语言，27+ 种语言全部自动可达。
+装上可选包 `tinyld` 后，`detectLanguageExtended()` 可以把本库支持的拉丁字母语言路由到对应 Snowball 算法，调用方无需预先传代码。
 
 ## 适用场景
 
@@ -263,21 +263,17 @@ babel-memory **绝不会**因缺少可选包而崩溃。每种语言都有**三�
 - **MCP Server 作者** — 记忆工具需要多语言支持
 - **所有人** — 如果你注意到 AI Agent 会"忘记"非英文对话
 
-## 与替代方案的对比
+## 范围与集成
 
-大多数 AI 记忆/RAG 系统都默认分词问题已解决。对英文确实如此，但对其他语言：
-
-| | babel-memory | mem0 | Letta | LanceDB 原生 FTS |
-|---|---|---|---|---|
-| CJK 词级分词 | jieba / kuromoji，内置 ICU 兜底 | 无 | 无 | 字符 bigram |
-| 零安装 CJK 质量 | **词级**（Intl.Segmenter + bigram） | — | — | 字符 bigram |
-| 中英混排处理 | script 分段路由 | 无 | 无 | 无 |
-| 欧洲语言词干提取 | Snowball (20 种) | 无 | 无 | 无 |
-| 语言自动检测 | 8 种文字系统 + 可选 tinyld（62 种） | 无 | 无 | 无 |
-| 语言匹配的 LLM prompt | 英 + 中 + 日 | 仅英文 | 仅英文 | 不适用 |
-| 必需依赖 | **0** | 重量级 | 重量级 | 不适用 |
-| 兼容任意 FTS 引擎 | Tantivy, SQLite FTS5, ES, Meilisearch | 锁定 | 锁定 | 仅 LanceDB |
-| 中文 BM25 实测召回 | 100%（raw 是 0%——见 bench/） | 未测 | 未测 | 部分 |
+| 能力 | babel-memory 提供什么 |
+|---|---|
+| CJK/泰语分词 | 可选 jieba / kuromoji / wordcut，并有 ICU 零依赖 fallback |
+| 混排文本 | 在拉丁字母主导文本中识别并路由其他文字系统片段 |
+| 词干提取 | 当前可用 16 个 Snowball 映射，其中 14 个是 8 个自动检测代码之外的额外代码 |
+| 语言检测 | 8 个基于文字系统的代码，可用 tinyld 细化本库支持的拉丁字母语言 |
+| 语言匹配 prompt | 英文、中文、日文 KG / session prompt |
+| FTS 集成 | 输出空格分隔文本，可接 Tantivy、SQLite FTS5、Elasticsearch、Meilisearch 等引擎 |
+| 必需依赖 | 0 |
 
 babel-memory **不是**记忆系统——它是一个预处理层，让任何记忆系统都能正确处理多语言内容。
 

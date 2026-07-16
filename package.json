@@ -1,7 +1,7 @@
 {
   "name": "babel-memory",
   "version": "2.1.0",
-  "description": "Language-aware preprocessing for AI memory systems. 27+ languages, zero required dependencies.",
+  "description": "Language-aware FTS preprocessing across 22 supported language codes, with zero required dependencies.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

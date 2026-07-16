@@ -4,7 +4,7 @@
 
 **The first standalone library fixing the multilingual blind spot in AI memory systems.**
 
-*27+ languages. Zero required dependencies. Drop-in fix for BM25 + RAG.*
+*22 supported language codes. Zero required dependencies. Drop-in preprocessing for BM25 + RAG.*
 
 > *Not affiliated with Babel.js. Named after the Tower of Babel — breaking the language barrier in AI agent memory.*
 
@@ -12,7 +12,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/babel-memory)](https://www.npmjs.com/package/babel-memory)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/AliceLJY/babel-memory?style=social)](https://github.com/AliceLJY/babel-memory)
-[![Languages](https://img.shields.io/badge/Languages-27+-orange)](https://github.com/AliceLJY/babel-memory)
+[![Languages](https://img.shields.io/badge/Language_codes-22-orange)](https://github.com/AliceLJY/babel-memory)
 [![Dependencies](https://img.shields.io/badge/Required_deps-0-brightgreen)](https://github.com/AliceLJY/babel-memory)
 
 **English** | [简体中文](README_CN.md)
@@ -23,7 +23,7 @@
 
 ## Why This Exists
 
-Every major AI memory / RAG system today — mem0, Letta, LanceDB-based stores — **silently fails on non-English content**. Research across 8 academic papers (MMTEB, XRAG, MIT 2025) reveals a systematic **5-layer semantic loss cascade**:
+Whitespace-tokenized retrieval pipelines commonly lose recall on languages that do not use spaces between words. Research across 8 academic papers (MMTEB, XRAG, MIT 2025) describes a broader **5-layer semantic loss cascade**:
 
 | Layer | What Breaks | Impact |
 |-------|-------------|--------|
@@ -72,7 +72,7 @@ npm install babel-memory
 npm install jieba-wasm          # Chinese (highest quality)
 npm install @sglkc/kuromoji     # Japanese (highest quality)
 npm install wordcut             # Thai
-npm install snowball-stemmers   # 20 European languages (German, French, Spanish, Russian, etc.)
+npm install snowball-stemmers   # 16 mapped algorithms currently usable by this library
 npm install tinyld              # auto-detect Latin-script languages (de/fr/es/...)
 ```
 
@@ -154,7 +154,7 @@ babel-memory pipeline (fixed):
 
 This works with **any** whitespace-based FTS engine: Tantivy (LanceDB), SQLite FTS5, Elasticsearch, Meilisearch. No engine modifications needed.
 
-### Measured: the gap is not subtle
+### Small deterministic smoke benchmark
 
 `bun bench/recall-benchmark.ts` — SQLite FTS5, 20 Chinese documents, 12 queries:
 
@@ -164,7 +164,7 @@ This works with **any** whitespace-based FTS engine: Tantivy (LanceDB), SQLite F
 | zero-dependency tier (Intl.Segmenter + bigrams) | **100%** | 0/12 |
 | full tier (jieba) | **100%** | 0/12 |
 
-Raw Chinese text in a whitespace FTS engine doesn't degrade — it **fails completely**. Every single query returns empty.
+On this fixed 20-document / 12-query Chinese fixture, raw text returns no results while both preprocessing tiers return all expected documents. This is a regression smoke test, not a general retrieval-quality benchmark.
 
 ### Mixed-script text (the AI-conversation reality)
 
@@ -252,9 +252,9 @@ A warning is logged once per missing package so you know what to install for bet
 | `hu` | Hungarian | `tr` | Turkish |
 | `ro` | Romanian | `cs` | Czech |
 
-Total: **8 auto-detected + 14 explicit Snowball = 27+ languages** (Arabic and Russian appear in both lists).
+Total: **22 distinct supported language codes**: 8 auto-detected codes plus 14 additional explicit Snowball codes. Arabic and Russian are already included in the auto-detected eight.
 
-With the optional `tinyld` pack installed, `detectLanguageExtended()` auto-detects the Latin-script languages too — closing the loop so all 27+ become reachable without the caller knowing the language up front.
+With the optional `tinyld` pack installed, `detectLanguageExtended()` can route the supported Latin-script languages into their mapped Snowball algorithms without the caller supplying a code.
 
 ## Who Is This For
 
@@ -263,21 +263,17 @@ With the optional `tinyld` pack installed, `detectLanguageExtended()` auto-detec
 - **MCP server authors** — if your memory tools need multilingual support
 - **Anyone** who's noticed their AI agent "forgets" non-English conversations
 
-## Compared to Alternatives
+## Scope and Integration
 
-Most AI memory / RAG systems treat tokenization as solved. They're not wrong — for English. For the rest of the world:
-
-| | babel-memory | mem0 | Letta | Raw LanceDB FTS |
-|---|---|---|---|---|
-| CJK word segmentation | jieba / kuromoji, ICU built-in fallback | None | None | Character bigrams |
-| Zero-install CJK quality | **Word-level** (Intl.Segmenter + bigrams) | — | — | Character bigrams |
-| Mixed CN/EN text | Script-run routing | None | None | None |
-| European stemming | Snowball (20 langs) | None | None | None |
-| Language detection | 8 scripts + optional tinyld (62 langs) | None | None | None |
-| Language-matched LLM prompts | EN + ZH + JA | English only | English only | N/A |
-| Required dependencies | **0** | Heavy | Heavy | N/A |
-| Works with any FTS engine | Tantivy, SQLite FTS5, ES, Meilisearch | Locked in | Locked in | LanceDB only |
-| Measured Chinese BM25 recall | 100% (vs 0% raw — see bench/) | unmeasured | unmeasured | partial |
+| Capability | What babel-memory provides |
+|---|---|
+| CJK/Thai segmentation | Optional jieba / kuromoji / wordcut, with ICU-based zero-dependency fallbacks |
+| Mixed-script text | Script-run routing inside otherwise Latin-classified text |
+| Stemming | 16 currently usable Snowball mappings; 14 are additional to the 8 auto-detected codes |
+| Language detection | 8 script-based codes, with optional tinyld refinement for supported Latin-script mappings |
+| Language-matched prompts | English, Chinese, and Japanese KG/session prompts |
+| FTS integration | Emits whitespace-delimited text for Tantivy, SQLite FTS5, Elasticsearch, Meilisearch, and similar engines |
+| Required dependencies | 0 |
 
 babel-memory is **not** a memory system — it's a preprocessing layer that makes any memory system work properly across languages.
 
