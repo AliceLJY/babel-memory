@@ -1,6 +1,6 @@
 {
   "name": "babel-memory",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Language-aware FTS preprocessing across 22 supported language codes, with zero required dependencies.",
   "type": "module",
   "main": "./dist/index.cjs",
