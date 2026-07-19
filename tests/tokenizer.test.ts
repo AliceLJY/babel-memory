@@ -72,6 +72,16 @@ describe("tokenizeForFts", () => {
     expect(result).not.toBe("maschinelles Lernen ist interessant");
   });
 
+  test("Snowball lowercases Unicode words and strips adjacent punctuation", () => {
+    expect(tokenizeForFts("Änderungen, MASCHINEN!", "de")).toBe("ander maschin");
+    expect(tokenizeForFts("МАШИНЫ, ПРОЕКТОВ!", "ru")).toBe("машин проект");
+  });
+
+  test("German index and query inflections converge on the same token", () => {
+    expect(tokenizeForFts("Verarbeitung", "de")).toBe("verarbeit");
+    expect(tokenizeForFts("verarbeitungen", "de")).toBe("verarbeit");
+  });
+
   test("French text gets Snowball stemming", () => {
     const result = tokenizeForFts("apprentissage automatique", "fr");
     expect(result.length).toBeGreaterThan(0);

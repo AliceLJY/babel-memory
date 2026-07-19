@@ -54,12 +54,12 @@
 修复前（欧洲语言）：
   存储: "Maschinelles Lernen verbessert die Verarbeitung"
   BM25 搜索("Verarbeitung") → [命中]
-  BM25 搜索("verarbeitet") → [] （词形不同，零结果）
+  BM25 搜索("verarbeitungen") → [] （词形不同，零结果）
 
 修复后 + snowball-stemmers：
   存储: "Maschinelles Lernen verbessert die Verarbeitung"
          → fts_text: "maschinell lern verbess verarbeit"
-  BM25 搜索("verarbeitet") → stem("verarbeitet") = "verarbeit" → [命中！]
+  BM25 搜索("verarbeitungen") → stem("verarbeitungen") = "verarbeit" → [命中！]
 ```
 
 ## 模块化安装

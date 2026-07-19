@@ -365,6 +365,7 @@ const NONLATIN_RUN_PROBE_RE =
 const RUN_HAS_KANA_RE = /[぀-ゟ゠-ヿ]/;
 const RUN_IS_HANGUL_RE = /^[가-힯ᄀ-ᇿ㄰-㆏]+$/;
 const RUN_IS_THAI_RE = /^[฀-๿]+$/;
+const SNOWBALL_WORD_RE = /[\p{L}\p{M}\p{N}]+(?:['’][\p{L}\p{M}\p{N}]+)*/gu;
 
 function tokenizeMixedScript(text: string): string {
   const parts = text.split(SCRIPT_RUN_SPLIT_RE);
@@ -439,14 +440,18 @@ function tokenizeSnowball(text: string, lang: string): string {
     // Fallback: passthrough
     return text;
   }
-  return text
-    .split(/\s+/)
+  // Snowball expects individual normalized words. Splitting only on
+  // whitespace leaves punctuation attached ("word,"), which many
+  // algorithms return unchanged. Locale-aware lowercasing also keeps
+  // index and query tokens symmetric for uppercase German/Russian text.
+  const words = text.match(SNOWBALL_WORD_RE) ?? [];
+  return words
     .map((word) => {
-      if (!word) return "";
+      const normalized = word.toLocaleLowerCase(lang);
       try {
-        return stemmer.stem(word);
+        return stemmer.stem(normalized);
       } catch {
-        return word;
+        return normalized;
       }
     })
     .filter((w) => w.length > 0)

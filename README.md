@@ -54,12 +54,12 @@ AFTER babel-memory:
 BEFORE babel-memory (European):
   Store: "Maschinelles Lernen verbessert die Verarbeitung"
   BM25 search("Verarbeitung") → [match]
-  BM25 search("verarbeitet") → [] (different form, zero results)
+  BM25 search("verarbeitungen") → [] (different form, zero results)
 
 AFTER babel-memory + snowball-stemmers:
   Store: "Maschinelles Lernen verbessert die Verarbeitung"
          → fts_text: "maschinell lern verbess verarbeit"
-  BM25 search("verarbeitet") → stem("verarbeitet") = "verarbeit" → [match found!]
+  BM25 search("verarbeitungen") → stem("verarbeitungen") = "verarbeit" → [match found!]
 ```
 
 ## Modular Install
