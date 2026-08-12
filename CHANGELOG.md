@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.1.1 (2026-08-13)
+
+### Fixed
+
+- Snowball-backed tokenizers now normalize case and punctuation boundaries consistently across indexing and querying.
+- Added a CJK index/query symmetry regression test so tokenizer changes cannot silently split stored text and queries differently.
+- Packaging CI now rejects bundled optional dependencies and publishing-machine path leaks, and uses current official GitHub Actions.
+
+### Changed
+
+- Knowledge-graph extraction prompts now use a discrete five-level confidence rubric in all three supported prompt languages.
+- Documentation and migration examples now match the behavior of the mixed-script fallback path, including low-ratio embedded CJK text.
+
 ## 2.1.0 (2026-06-11)
 
 ### Fixed
