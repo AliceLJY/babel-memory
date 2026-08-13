@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeAll } from "bun:test";
-import { tokenizeForFts, initTokenizer } from "../src/tokenizer";
+import { getLoadedTokenizers, tokenizeForFts, initTokenizer } from "../src/tokenizer";
 
 beforeAll(async () => {
   await initTokenizer();
@@ -57,7 +57,8 @@ describe("tokenizeForFts", () => {
 
   test("Thai text gets wordcut segmentation", () => {
     const result = tokenizeForFts("สวัสดีครับ", "th");
-    expect(result.length).toBeGreaterThan(0);
+    expect(getLoadedTokenizers()).toContain("wordcut");
+    expect(result).toBe("สวัสดี ครับ");
   });
 
   test("Russian text gets Snowball stemming", () => {

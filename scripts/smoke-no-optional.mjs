@@ -23,6 +23,9 @@ function check(name, cond, detail = "") {
   }
 }
 
+const warnings = [];
+const originalWarn = console.warn;
+console.warn = (...args) => warnings.push(args.map(String).join(" "));
 await initTokenizer(); // every optional load fails gracefully
 
 const loaded = getLoadedTokenizers();
@@ -36,7 +39,13 @@ const ja = tokenizeForFts("東京タワーはとても高いです", "ja");
 check("ja segments without kuromoji", ja.split(" ").length >= 3, ja);
 
 const th = tokenizeForFts("สวัสดีครับผมชอบกินข้าว", "th");
+console.warn = originalWarn;
 check("th is NOT passthrough (old bug: one giant token)", th.split(" ").length >= 3, th);
+check(
+  "missing wordcut uses the default ICU tier without a warning",
+  !warnings.some((warning) => warning.includes("wordcut")),
+  warnings.join(" | ")
+);
 
 const ko = tokenizeForFts("프로젝트", "ko");
 check("ko stays syllable-level", ko === "프 로 젝 트", ko);

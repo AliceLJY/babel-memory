@@ -12,6 +12,7 @@ let kuromojiReady = false;
 
 let wordcutReady = false;
 let wordcutModule: { cut: (t: string) => string } | null = null;
+let wordcutLoadAttempted = false;
 
 type SnowballStemmer = { stem: (w: string) => string };
 const snowballStemmers = new Map<string, SnowballStemmer>();
@@ -165,8 +166,10 @@ async function loadKuromoji(): Promise<boolean> {
   }
 }
 
-async function loadWordcut(): Promise<boolean> {
+function tryLoadWordcut(): boolean {
   if (wordcutReady) return true;
+  if (wordcutLoadAttempted) return false;
+  wordcutLoadAttempted = true;
   try {
     // wordcut is CJS-only, use require
     const mod = require("wordcut");
@@ -175,9 +178,12 @@ async function loadWordcut(): Promise<boolean> {
     wordcutReady = true;
     return true;
   } catch {
-    warnOnce("wordcut", "wordcut not available, Thai will use character-level fallback");
     return false;
   }
+}
+
+async function loadWordcut(): Promise<boolean> {
+  return tryLoadWordcut();
 }
 
 async function loadSnowball(): Promise<boolean> {
@@ -412,18 +418,14 @@ function tokenizeJapanese(text: string): string {
 }
 
 function tokenizeThai(text: string): string {
-  if (!wordcutModule || !wordcutReady) {
-    // Try synchronous require as a last resort
-    try {
-      const mod = require("wordcut");
-      mod.init();
-      wordcutModule = mod;
-      wordcutReady = true;
-    } catch {
-      // Fallback: ICU word segmentation beats passthrough (Thai has no
-      // spaces, so passthrough means one giant token = zero BM25 matches)
-      return segmentWithIntl(text, "th") ?? text;
-    }
+  if (!tryLoadWordcut()) {
+    // Fallback: ICU word segmentation beats passthrough (Thai has no
+    // spaces, so passthrough means one giant token = zero BM25 matches).
+    // wordcut remains an explicit quality upgrade, so its absence is expected.
+    const segmented = segmentWithIntl(text, "th");
+    if (segmented !== null) return segmented;
+    warnOnce("wordcut", "wordcut and Intl.Segmenter are unavailable, Thai will use passthrough");
+    return text;
   }
   // wordcut returns pipe-separated string
   const result = wordcutModule!.cut(text);

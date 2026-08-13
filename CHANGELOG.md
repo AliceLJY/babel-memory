@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.2 (2026-08-13)
+
+### Fixed
+
+- `wordcut` is now an explicit Thai quality upgrade instead of an automatically installed optional dependency. Default installs use the existing `Intl.Segmenter` Thai fallback and no longer inherit `glob`, `inflight`, `body`, or `raw-body` from `wordcut`.
+- A missing `wordcut` package no longer emits an inaccurate character-level fallback warning. Environments without both `wordcut` and `Intl.Segmenter` still receive a passthrough warning.
+
 ## 2.1.1 (2026-08-13)
 
 ### Fixed
