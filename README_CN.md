@@ -19,6 +19,8 @@
 
 </div>
 
+> **状态：** 稳定 · 低频维护 · 2026-10 最后核验。
+
 ---
 
 ## 为什么需要这个库
@@ -279,7 +281,7 @@ babel-memory **不是**记忆系统——它是一个预处理层，让任何记
 
 ## 谁在使用
 
-- [RecallNest](https://github.com/AliceLJY/recallnest) — MCP 原生共享记忆，服务 Claude Code、Codex 和 Gemini CLI
+- [RecallNest](https://github.com/AliceLJY/recallnest) — 任何 MCP 客户端都能接的共享记忆层
 
 ## 研究参考
 

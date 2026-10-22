@@ -19,6 +19,8 @@
 
 </div>
 
+> **Status:** stable · low-frequency maintenance · last verified 2026-10.
+
 ---
 
 ## Why This Exists
@@ -279,7 +281,7 @@ babel-memory is **not** a memory system — it's a preprocessing layer that make
 
 ## Used By
 
-- [RecallNest](https://github.com/AliceLJY/recallnest) — MCP-native shared memory for Claude Code, Codex, and Gemini CLI
+- [RecallNest](https://github.com/AliceLJY/recallnest) — one shared memory layer for any MCP client
 
 ## Research References
 
