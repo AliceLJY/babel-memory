@@ -142,6 +142,8 @@ getLoadedTokenizers(); // → ["jieba", "kuromoji", "tinyld"] — verify deploym
 await initTokenizer({ languages: ["zh", "de"] });
 ```
 
+![Real output of the default install on Node: Chinese, Japanese and Thai detected and word-segmented; German stemmed when the language is passed explicitly](docs/assets/quickstart-output.png)
+
 ## How It Works
 
 The key insight: **pre-tokenize non-whitespace-delimited text before FTS indexing, and stem inflected languages.**

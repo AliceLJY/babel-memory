@@ -142,6 +142,8 @@ getLoadedTokenizers(); // → ["jieba", "kuromoji", "tinyld"] — 验证部署�
 await initTokenizer({ languages: ["zh", "de"] });
 ```
 
+![默认安装在 Node 上的真实输出：中文、日文、泰文自动识别并按词切分；德文显式指定语言后做词干还原](docs/assets/quickstart-output.png)
+
 ## 工作原理
 
 核心思路：**在 FTS 索引之前，对无空格分隔的文本做预分词，对屈折语言做词干提取。**
