@@ -25,7 +25,7 @@
 
 ## 为什么需要这个库
 
-依赖空格切词的检索管线，在不以空格分隔词语的语言上经常损失召回。综合 8 篇学术论文（MMTEB、XRAG、MIT 2025）的研究结果，可以看到一条更广泛的 **5 层语义损失级联**：
+依赖空格切词的检索管线，在不以空格分隔词语的语言上经常损失召回。综合 MMTEB、XRAG、MIT 2025 等研究（见[研究参考](#研究参考)），可以看到一条更广泛的 **5 层语义损失级联**：
 
 | 层级 | 出了什么问题 | 影响 |
 |------|-------------|------|
@@ -67,18 +67,18 @@
 ## 模块化安装
 
 ```bash
-# 仅安装核心（零依赖——纯 TypeScript）
+# 默认安装：核心包 + 四个可选语言包
+# （jieba-wasm、@sglkc/kuromoji、snowball-stemmers、tinyld），npm 会自动装上
 npm install babel-memory
 
-# 按需添加语言包：
-npm install jieba-wasm          # 中文（最高质量）
-npm install @sglkc/kuromoji     # 日文（最高质量）
-npm install wordcut             # 泰文
-npm install snowball-stemmers   # 本库当前可用的 16 个映射算法
-npm install tinyld              # 拉丁字母语言自动检测（de/fr/es/...）
+# 真正零依赖的安装：跳过可选语言包
+npm install babel-memory --omit=optional
+
+# 泰文质量升级：2.1.2 起不再随包安装，需要的话自己装
+npm install wordcut
 ```
 
-**用什么装什么。** 核心包零依赖——语言包在运行时懒加载。而且得益于内置的 **Intl.Segmenter 层**（Node 16+/Bun/Deno/浏览器自带的 ICU 词典），零依赖安装就已经能获得中文、日文、泰文的**词级分词**——安装语言包则进一步提升质量。绝不会崩溃。
+**没有任何必需依赖。** 四个可选语言包都在运行时懒加载，不装也能用。得益于内置的 **Intl.Segmenter 层**（Node 16+/Bun/Deno/浏览器自带的 ICU 词典），即使 `--omit=optional` 也能获得中文、日文、泰文的**词级分词**（日文还会额外输出重叠二元组兜召回）；装上语言包则进一步提升质量，欧洲语言要装 `snowball-stemmers` 才有词干还原。缺语言包绝不会让库崩溃。
 
 ## 快速上手
 

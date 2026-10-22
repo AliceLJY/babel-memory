@@ -25,7 +25,7 @@
 
 ## Why This Exists
 
-Whitespace-tokenized retrieval pipelines commonly lose recall on languages that do not use spaces between words. Research across 8 academic papers (MMTEB, XRAG, MIT 2025) describes a broader **5-layer semantic loss cascade**:
+Whitespace-tokenized retrieval pipelines commonly lose recall on languages that do not use spaces between words. Research including MMTEB, XRAG, and MIT 2025 (see [Research References](#research-references)) describes a broader **5-layer semantic loss cascade**:
 
 | Layer | What Breaks | Impact |
 |-------|-------------|--------|
@@ -67,18 +67,18 @@ AFTER babel-memory + snowball-stemmers:
 ## Modular Install
 
 ```bash
-# Core only (zero dependencies — pure TypeScript)
+# Default install: the core plus four optional language packs
+# (jieba-wasm, @sglkc/kuromoji, snowball-stemmers, tinyld), which npm installs automatically
 npm install babel-memory
 
-# Add language packs as needed:
-npm install jieba-wasm          # Chinese (highest quality)
-npm install @sglkc/kuromoji     # Japanese (highest quality)
-npm install wordcut             # Thai
-npm install snowball-stemmers   # 16 mapped algorithms currently usable by this library
-npm install tinyld              # auto-detect Latin-script languages (de/fr/es/...)
+# Truly zero-dependency install: skip the optional packs
+npm install babel-memory --omit=optional
+
+# Thai quality upgrade: not bundled as of 2.1.2, install it yourself if you want it
+npm install wordcut
 ```
 
-**You only pay for what you use.** The core package has zero dependencies — language packs are loaded lazily at runtime. And thanks to the built-in **Intl.Segmenter tier** (ICU dictionaries shipped with Node 16+/Bun/Deno/browsers), a zero-dependency install already gets **word-level segmentation** for Chinese, Japanese and Thai — installing the packs upgrades quality further. It never crashes.
+**Nothing is required.** All four optional packs are loaded lazily at runtime, so an install without them still works. Thanks to the built-in **Intl.Segmenter tier** (ICU dictionaries shipped with Node 16+/Bun/Deno/browsers), even `--omit=optional` gets **word-level segmentation** for Chinese, Japanese and Thai (Japanese also emits overlapping bigrams as a recall safety net); the packs upgrade quality further, and European languages need `snowball-stemmers` for stemming. A missing pack never crashes the library.
 
 ## Quick Start
 
