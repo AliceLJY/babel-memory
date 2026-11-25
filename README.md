@@ -82,6 +82,8 @@ npm install wordcut
 
 ## Quick Start
 
+The snippet below is plain JavaScript, so you can run it as-is: in a project where you ran `npm install babel-memory`, save it as `quickstart.mjs` and run `node quickstart.mjs`. It prints nothing by itself; the `// →` comments show what each call returns, so wrap any call in `console.log(...)` to see it.
+
 ```typescript
 import { detectLanguage, initTokenizer, tokenizeForFts, getKgPrompt } from "babel-memory";
 
@@ -108,6 +110,7 @@ tokenizeForFts("Maschinelles Lernen", "de");
 
 // 4. ⚠️ CRITICAL: apply the SAME tokenization to your queries.
 // Tokenization only matches when index side and query side agree:
+const userQuery = "机器学习"; // whatever the user typed
 const ftsQuery = tokenizeForFts(userQuery, detectLanguage(userQuery));
 // store side:  "机器学习很有趣" → "机器 学习 很 有趣"  (indexed)
 // query side:  "机器学习"       → "机器 学习"          (matches!)
@@ -124,7 +127,7 @@ getKgPrompt("ko"); // → English prompt (instructions in a third language hurt 
 import { detectLanguageDetailed, detectLanguageExtended, getLoadedTokenizers } from "babel-memory";
 
 detectLanguageDetailed("我在用 TypeScript 给 RecallNest 写 tokenizer hook");
-// → { language: "en", scripts: { cjk: 0.13, latin: 0.83, ... }, isMixed: true }
+// → { language: "en", scripts: { cjk: 0.13, latin: 0.87, ... }, isMixed: true }
 // AI conversation logs mix CN/EN constantly — isMixed tells you when.
 // Segmentation-needing scripts (CJK/Thai) flag mixed from a ~2% ratio:
 // even a tiny Chinese island is unsearchable if left unsegmented.
@@ -136,7 +139,7 @@ detectLanguageExtended("Das ist ein guter Tag");
 tokenizeForFts("机器学习的应用", "zh", { removeStopwords: true });
 // → "机器 学习 应用"  (的 removed; opt-in, default off)
 
-getLoadedTokenizers(); // → ["jieba", "kuromoji", "tinyld"] — verify deployment
+getLoadedTokenizers(); // → ["jieba", "kuromoji", "snowball", "tinyld"] — verify deployment
 
 // Selective init when you don't need everything (kuromoji alone = ~1-2s + ~17MB):
 await initTokenizer({ languages: ["zh", "de"] });

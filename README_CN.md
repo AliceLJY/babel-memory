@@ -82,6 +82,8 @@ npm install wordcut
 
 ## 快速上手
 
+下面这段是纯 JavaScript，可以原样运行：在已经 `npm install babel-memory` 的项目里存成 `quickstart.mjs`，跑 `node quickstart.mjs`。它本身不打印任何东西，`// →` 后面的注释是每个调用的返回值，想看哪个就用 `console.log(...)` 包起来。
+
 ```typescript
 import { detectLanguage, initTokenizer, tokenizeForFts, getKgPrompt } from "babel-memory";
 
@@ -108,6 +110,7 @@ tokenizeForFts("Maschinelles Lernen", "de");
 
 // 4. ⚠️ 关键：查询侧必须做同样的分词处理。
 // 分词只有在索引侧和查询侧一致时才能匹配：
+const userQuery = "机器学习"; // 用户输入的查询
 const ftsQuery = tokenizeForFts(userQuery, detectLanguage(userQuery));
 // 存储侧:  "机器学习很有趣" → "机器 学习 很 有趣"  （已索引）
 // 查询侧:  "机器学习"       → "机器 学习"          （命中！）
@@ -124,7 +127,7 @@ getKgPrompt("ko"); // → 英文 prompt（用无关第三语言写指令会伤�
 import { detectLanguageDetailed, detectLanguageExtended, getLoadedTokenizers } from "babel-memory";
 
 detectLanguageDetailed("我在用 TypeScript 给 RecallNest 写 tokenizer hook");
-// → { language: "en", scripts: { cjk: 0.13, latin: 0.83, ... }, isMixed: true }
+// → { language: "en", scripts: { cjk: 0.13, latin: 0.87, ... }, isMixed: true }
 // AI 对话里中英混排是常态——isMixed 告诉你何时发生。
 // 需要分词的文字系统（CJK/泰文）从约 2% 占比起就标记混排：
 // 哪怕一小段中文岛不分词也是搜不到的。
@@ -136,7 +139,7 @@ detectLanguageExtended("Das ist ein guter Tag");
 tokenizeForFts("机器学习的应用", "zh", { removeStopwords: true });
 // → "机器 学习 应用"  （"的"被移除；opt-in，默认关闭）
 
-getLoadedTokenizers(); // → ["jieba", "kuromoji", "tinyld"] — 验证部署配置
+getLoadedTokenizers(); // → ["jieba", "kuromoji", "snowball", "tinyld"] — 验证部署配置
 
 // 按需加载（kuromoji 单独就要 ~1-2s + ~17MB 内存）：
 await initTokenizer({ languages: ["zh", "de"] });
