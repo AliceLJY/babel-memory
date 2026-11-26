@@ -1,0 +1,58 @@
+diff --git a/README.md b/README.md
+index 887211d..f87e06c 100644
+--- a/README.md
++++ b/README.md
+@@ -147,7 +147,13 @@ The synthetic local-contract fixtures dated 2026-07-17 were re-run against Claud
+ 
+ Claude Code is installed separately from this package. For a Claude CLI engine, install a current Claude Code release, verify it with `claude --version`, and check the compatibility boundary above before upgrading an existing bridge.
+ 
++You also need [Bun](https://bun.sh) (the bridge runs on Bun, not Node).
++
+ ```bash
++# 0. get the code
++git clone https://github.com/AliceLJY/tg-bridge-channel.git
++cd tg-bridge-channel
++
+ # 1. create a bot: in Telegram, open @BotFather, send /newbot, copy the token it returns
+ #    you also need your own numeric Telegram user ID for ownerTelegramId
+ 
+@@ -158,6 +164,10 @@ bun install
+ cp config.example.json config.json
+ # edit config.json: set ownerTelegramId, backends.claude.telegramBotToken, and shared.cwd (defaults to ".")
+ 
++# 3b. optional: validate config.json offline before starting (no Telegram connection);
++#     it prints "[check] ok", or a numbered list of fields to fix
++bun run check --backend claude --config config.json
++
+ # 4. run with the reply engine (recommended)
+ CLAUDE_REPLY_ENGINE=1 bun run start --backend claude --config config.json
+ ```
+diff --git a/README_CN.md b/README_CN.md
+index 0cf4f89..de3df33 100644
+--- a/README_CN.md
++++ b/README_CN.md
+@@ -147,7 +147,13 @@ bridge **不会捆绑或自动升级 Claude Code**。CLI 引擎读取 `CLAUDE_CL
+ 
+ Claude Code 需独立安装，不包含在本包内。使用 Claude CLI 引擎时，请安装当前版本、用 `claude --version` 确认，并在升级现有 bridge 前核对上面的兼容边界。
+ 
++另外需要先装 [Bun](https://bun.sh)（bridge 跑在 Bun 上，不是 Node）。
++
+ ```bash
++# 0. 拿到代码
++git clone https://github.com/AliceLJY/tg-bridge-channel.git
++cd tg-bridge-channel
++
+ # 1. 建 bot：在 Telegram 里打开 @BotFather，发送 /newbot，复制它返回的 token
+ #    还需要你自己的 Telegram 数字用户 ID，填进 ownerTelegramId
+ 
+@@ -158,6 +164,10 @@ bun install
+ cp config.example.json config.json
+ # 编辑 config.json：设置 ownerTelegramId 和 backends.claude.telegramBotToken，按需修改 shared.cwd（默认 "." 即当前目录）
+ 
++# 3b. 可选：启动前先离线校验 config.json（不连 Telegram）；
++#     通过时打印 "[check] ok"，不通过时逐条列出要改的字段
++bun run check --backend claude --config config.json
++
+ # 4. 用 reply 引擎运行（推荐）
+ CLAUDE_REPLY_ENGINE=1 bun run start --backend claude --config config.json
+ ```

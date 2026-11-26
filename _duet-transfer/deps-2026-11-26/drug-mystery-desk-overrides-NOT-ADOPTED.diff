@@ -1,0 +1,15 @@
+diff --git a/package.json b/package.json
+index da018bb..58e0e9d 100644
+--- a/package.json
++++ b/package.json
+@@ -39,5 +39,9 @@
+     "vite": "8.3.8",
+     "wrangler": "4.164.0"
+   },
+-  "type": "module"
++  "type": "module",
++  "overrides": {
++    "image-size": "2.0.4",
++    "@vercel/og": "1.0.3"
++  }
+ }

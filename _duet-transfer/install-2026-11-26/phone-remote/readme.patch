@@ -1,0 +1,104 @@
+diff --git a/README.md b/README.md
+index 7da931e..2f6d81a 100644
+--- a/README.md
++++ b/README.md
+@@ -43,8 +43,12 @@ same setup works on iPhone and Android side by side.
+ 
+ ## Install
+ 
++Requires macOS 13+, Node.js on your `PATH`, and Xcode Command Line Tools
++(`install.sh` compiles the wrapper with `clang` and signs it with `codesign`;
++install them with `xcode-select --install`). It does not run on Linux.
++
+ ```bash
+-git clone https://github.com/<you>/phone-remote.git ~/Projects/phone-remote
++git clone https://github.com/AliceLJY/phone-remote.git ~/Projects/phone-remote
+ cd ~/Projects/phone-remote
+ ./install.sh
+ ```
+@@ -56,9 +60,13 @@ Zero npm dependencies — Node's standard library only.
+ To run it in the foreground instead:
+ 
+ ```bash
+-node server.js     # prints the tokenized phone URL
++node server.js                 # listens on 127.0.0.1 only: the phone can't reach it yet
++HOST=0.0.0.0 node server.js    # reachable from the LAN / Tailscale (see Security)
+ ```
+ 
++Both print the tokenized phone URL. The LaunchAgent that `install.sh` writes
++sets no `HOST`, so the background service also listens on `127.0.0.1` only.
++
+ ### One manual step: Accessibility
+ 
+ Synthesizing keystrokes requires Accessibility permission, which macOS grants
+@@ -67,7 +75,8 @@ per executable:
+ > System Settings → Privacy & Security → Accessibility → **+** → Applications →
+ > **Phone Remote** → toggle on
+ 
+-Then `launchctl kickstart -k gui/$(id -u)/<label>`. Until this is granted,
++Then `launchctl kickstart -k gui/$(id -u)/com.example.phone-remote` (the default
++label; use your own if you ran `install.sh` with `PR_LABEL=...`). Until this is granted,
+ `/type` and `/key` return a `not allowed to send keystrokes (1002)` error.
+ 
+ **Why the .app wrapper**: macOS grants Accessibility per executable. If launchd
+@@ -84,6 +93,9 @@ The startup log (`~/ops-logs/phone-remote/stdout.log`) prints a tokenized URL:
+ http://100.x.y.z:8787/?t=<token>
+ ```
+ 
++The IP comes from `tailscale ip -4`; without Tailscale it prints a literal
++`<本机IP>` ("this machine's IP") placeholder, so put in the Mac's LAN IP yourself.
++
+ Open it on the phone (over Tailscale, or `<your-mac>.local:8787` on the same
+ LAN), then **Add to Home Screen** — it becomes a full-screen app that carries
+ its own token, indistinguishable from a native one.
+diff --git a/README_CN.md b/README_CN.md
+index ecbbf7d..d0df830 100644
+--- a/README_CN.md
++++ b/README_CN.md
+@@ -37,8 +37,12 @@ phone-remote 绕开这条路——不做跨会话转发，而是**在目标 Mac
+ 
+ ## 安装
+ 
++需要 macOS 13+、`PATH` 里有 Node.js，以及 Xcode Command Line Tools（`install.sh`
++用 `clang` 编译包装器、用 `codesign` 签名；没有的话先跑 `xcode-select --install`）。
++Linux 上跑不了。
++
+ ```bash
+-git clone https://github.com/<你>/phone-remote.git ~/Projects/phone-remote
++git clone https://github.com/AliceLJY/phone-remote.git ~/Projects/phone-remote
+ cd ~/Projects/phone-remote
+ ./install.sh
+ ```
+@@ -49,16 +53,21 @@ LaunchAgent（开机自启、崩溃自动重启）并启动服务。零 npm 依
+ 想前台跑：
+ 
+ ```bash
+-node server.js     # 会打印带 token 的手机访问地址
++node server.js                 # 只听 127.0.0.1：这时手机还连不上
++HOST=0.0.0.0 node server.js    # 局域网 / Tailscale 可达（先看「安全」一节）
+ ```
+ 
++两种都会打印带 token 的手机访问地址。`install.sh` 写的 LaunchAgent 没有设
++`HOST`，所以后台服务同样只听 `127.0.0.1`。
++
+ ### 唯一需要手动点一次的：辅助功能授权
+ 
+ 合成键盘事件需要「辅助功能」权限，macOS 是**按可执行文件**授权的：
+ 
+ > 系统设置 → 隐私与安全性 → 辅助功能 → **+** → 应用程序 → **Phone Remote** → 打开开关
+ 
+-然后 `launchctl kickstart -k gui/$(id -u)/<label>` 重启一下。没授权之前，
++然后 `launchctl kickstart -k gui/$(id -u)/com.example.phone-remote` 重启一下（这是默认
++label；如果跑 `install.sh` 时设了 `PR_LABEL=...`，换成你自己的）。没授权之前，
+ `/type` 和 `/key` 会返回 `不允许发送按键 (1002)`。
+ 
+ **为什么要包一层 .app**：macOS 按可执行文件授权，若 launchd 直接指
+@@ -74,6 +83,8 @@ node server.js     # 会打印带 token 的手机访问地址
+ http://100.x.y.z:8787/?t=<token>
+ ```
+ 
++IP 取自 `tailscale ip -4`；没装 Tailscale 时会原样打印占位符 `<本机IP>`，需要自己换成 Mac 的局域网 IP。
++
+ 手机上打开它（走 Tailscale，或同一局域网用 `<your-mac>.local:8787`），然后
+ **添加到主屏幕**——就成了一个全屏 App，token 带在里面，点开即用。
+ 

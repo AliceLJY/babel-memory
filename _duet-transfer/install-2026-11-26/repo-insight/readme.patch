@@ -1,0 +1,60 @@
+diff --git a/README.md b/README.md
+index 58be5ac..50b097d 100644
+--- a/README.md
++++ b/README.md
+@@ -17,9 +17,11 @@ Compatible with [Claude Code](https://claude.ai/claude-code), [Codex](https://gi
+ **npx (Recommended)**
+ 
+ ```bash
+-npx skills add AliceLJY/repo-insight
++npx skills add AliceLJY/repo-insight -g -a claude-code
+ ```
+ 
++`-g` installs for your user (`~/.claude/skills/repo-insight`) and `-a claude-code` limits it to Claude Code. Without `-g`, `skills` installs into the **current directory** (it creates `.claude/skills/`, `.agents/skills/` and `skills-lock.json` there), so the skill only works in that folder; without `-a` it links into every agent it knows about.
++
+ **Manual (Git Clone + Symlink)**
+ 
+ The skill lives in a nested `skills/repo-insight/` directory, so clone the repo anywhere and link the inner directory into your skills folder (cloning the whole repo directly into `~/.claude/skills/` will NOT work — Claude Code expects `SKILL.md` at the top level of each skill directory):
+@@ -27,10 +29,12 @@ The skill lives in a nested `skills/repo-insight/` directory, so clone the repo
+ ```bash
+ # macOS / Linux
+ git clone https://github.com/AliceLJY/repo-insight.git ~/repo-insight
++mkdir -p ~/.claude/skills    # ln fails with "No such file or directory" if this folder doesn't exist yet
+ ln -s ~/repo-insight/skills/repo-insight ~/.claude/skills/repo-insight
+ 
+ # Windows (junction, no admin required)
+ git clone https://github.com/AliceLJY/repo-insight.git %USERPROFILE%\repo-insight
++if not exist %USERPROFILE%\.claude\skills mkdir %USERPROFILE%\.claude\skills
+ mklink /J %USERPROFILE%\.claude\skills\repo-insight %USERPROFILE%\repo-insight\skills\repo-insight
+ ```
+ 
+diff --git a/README_CN.md b/README_CN.md
+index bd5acab..63a7580 100644
+--- a/README_CN.md
++++ b/README_CN.md
+@@ -15,9 +15,11 @@ AI 编码助手技能，用于开源项目深度架构分析。不止于"用了
+ **npx（推荐）**
+ 
+ ```bash
+-npx skills add AliceLJY/repo-insight
++npx skills add AliceLJY/repo-insight -g -a claude-code
+ ```
+ 
++`-g` 装到用户级（`~/.claude/skills/repo-insight`），`-a claude-code` 只装给 Claude Code。不加 `-g` 时 `skills` 会装进**当前目录**（在那里建 `.claude/skills/`、`.agents/skills/` 和 `skills-lock.json`），技能只在这个文件夹里生效；不加 `-a` 会链接进它认识的所有 agent。
++
+ **手动安装（Git Clone + 软链接）**
+ 
+ 技能本体在嵌套的 `skills/repo-insight/` 目录里，所以要把仓库 clone 到任意位置后，将内层目录链接进 skills 文件夹（把整个仓库直接 clone 进 `~/.claude/skills/` 是**不行**的——Claude Code 要求每个技能目录顶层就有 `SKILL.md`）：
+@@ -25,10 +27,12 @@ npx skills add AliceLJY/repo-insight
+ ```bash
+ # macOS / Linux
+ git clone https://github.com/AliceLJY/repo-insight.git ~/repo-insight
++mkdir -p ~/.claude/skills    # 这个目录还不存在时，ln 会报 "No such file or directory"
+ ln -s ~/repo-insight/skills/repo-insight ~/.claude/skills/repo-insight
+ 
+ # Windows（junction，无需管理员权限）
+ git clone https://github.com/AliceLJY/repo-insight.git %USERPROFILE%\repo-insight
++if not exist %USERPROFILE%\.claude\skills mkdir %USERPROFILE%\.claude\skills
+ mklink /J %USERPROFILE%\.claude\skills\repo-insight %USERPROFILE%\repo-insight\skills\repo-insight
+ ```
+ 

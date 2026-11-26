@@ -1,0 +1,26 @@
+diff --git a/README.md b/README.md
+index 4c4af99..058a9c1 100644
+--- a/README.md
++++ b/README.md
+@@ -77,7 +77,7 @@ Prerequisites:
+ 
+ ## Quick Start
+ 
+-One command opens a three-pane tmux room:
++One command opens a three-pane tmux room. `trio` needs **both** `claude` and `codex` on your `PATH`; if `codex` is missing it stops with `Error: codex CLI is required but was not found in PATH`. No Codex? Skip to **Only have Claude Code?** below.
+ 
+ ```bash
+ agent-room trio --room dev --name me --fresh
+diff --git a/README_CN.md b/README_CN.md
+index 2725d50..c4ff724 100644
+--- a/README_CN.md
++++ b/README_CN.md
+@@ -75,7 +75,7 @@ npm link
+ 
+ ## 快速开始
+ 
+-一条命令打开一个三窗格 tmux 房间：
++一条命令打开一个三窗格 tmux 房间。`trio` 要求 `claude` 和 `codex` **两个**都在 `PATH` 里；缺 `codex` 会直接报 `Error: codex CLI is required but was not found in PATH` 退出。没有 Codex 的话，直接看下面的「**只有 Claude Code？**」。
+ 
+ ```bash
+ agent-room trio --room dev --name me --fresh
